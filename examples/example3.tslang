@@ -1,0 +1,23 @@
+Deschodt Eric() -> int
+    peric("Boucle aer :")
+    aer i in range(0, 5):
+        peric("i = {i}")
+
+    peric("Boucle darius :")
+    eric x = 0 -> int
+    darius (x < 3):
+        peric("x = {x}")
+        x = x + 1
+
+    deschodt 0
+
+desnote print Boucle aer :
+desnote print i = 0
+desnote print i = 1
+desnote print i = 2
+desnote print i = 3
+desnote print i = 4
+desnote print Boucle darius :
+desnote print x = 0
+desnote print x = 1
+desnote print x = 2

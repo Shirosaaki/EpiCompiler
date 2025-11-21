@@ -1,0 +1,10 @@
+Deschodt incremente(ptr -> int*) -> void
+    *ptr = *ptr + 1
+
+Deschodt Eric() -> int
+    eric n = 10
+    incremente(&n)
+    peric("n = {n}")
+    deschodt 0
+
+desnote print n = 11

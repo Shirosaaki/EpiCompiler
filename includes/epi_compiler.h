@@ -15,6 +15,9 @@
     #include <stdarg.h>
     #include <elf.h>
     #include "elf_header.h"
+    #include "lexer.h"
+    #include "token.h"
+    #include "lex_error.h"
 
 
 #endif /* !EPICOMPILER_H_ */

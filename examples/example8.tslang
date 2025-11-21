@@ -1,0 +1,18 @@
+Deschodt Eric() -> int
+    aer i in range(0, 10):
+        erif (i == 3):
+            deschontinue
+        erif (i == 7):
+            deschreak
+        peric("i = {i}")
+
+    peric("Fin de boucle")
+    deschodt 0
+
+desnote print i = 0
+desnote print i = 1
+desnote print i = 2
+desnote print i = 4
+desnote print i = 5
+desnote print i = 6
+desnote print Fin de boucle

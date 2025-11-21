@@ -1,0 +1,13 @@
+destruct Personne:
+    char* nom
+    int age
+
+Deschodt Eric() -> int
+    eric p -> Personne
+    p.nom = "Alice"
+    p.age = 25
+
+    peric("Nom: {p.nom}, Age: {p.age}")
+    deschodt 0
+
+desnote print Nom: Alice, Age: 25

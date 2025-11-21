@@ -1,0 +1,17 @@
+destruct Voiture:
+    char* marque
+    int vitesse
+
+Deschodt accelerate(v -> Voiture*, bonus -> int) -> void
+    v.vitesse = v.vitesse + bonus
+    peric("{v.marque} roule à {v.vitesse} km/h")
+
+Deschodt Eric() -> int
+    eric car -> Voiture
+    car.marque = "Peugeot"
+    car.vitesse = 100
+
+    accelerate(&car, 20)
+    deschodt 0
+
+desnote print Peugeot roule à 120 km/h

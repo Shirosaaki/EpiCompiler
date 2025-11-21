@@ -1,0 +1,10 @@
+Deschodt Eric() -> int
+    eric x -> int
+    eric y = 10 -> int
+    x = 5
+    eric z = x + y -> int
+
+    peric("x = {x}, y = {y}, z = {z}")
+    deschodt 0
+
+desnote print x = 5, y = 10, z = 15

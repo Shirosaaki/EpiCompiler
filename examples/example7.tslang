@@ -1,0 +1,8 @@
+Deschodt Eric() -> int
+    eric nom = "Mathéo"
+    eric age = 21
+
+    peric("Bonjour {nom}, tu as {age} ans.")
+    deschodt 0
+
+desnote print Bonjour Mathéo, tu as 21 ans.
