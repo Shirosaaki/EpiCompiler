@@ -17,6 +17,8 @@ typedef enum ASTNodeType {
     AST_PROGRAM,
     AST_FUNCTION_DEF,
     AST_VAR_DECL,
+    AST_CONST_DECL,        /* cz - constant declaration */
+    AST_ENUM_DEF,          /* desnum - enum definition */
     AST_ASSIGNMENT,
     AST_ARRAY_ACCESS,      /* Array element access: arr[index] */
     AST_ARRAY_ASSIGN,      /* Array element assignment: arr[index] = value */
@@ -83,6 +85,8 @@ struct ASTNode {
         /* AST_PROGRAM */
         struct {
             ASTNodeList functions;
+            ASTNodeList constants;  /* Global constants (cz) */
+            ASTNodeList enums;      /* Enum definitions (desnum) */
         } program;
 
         /* AST_FUNCTION_DEF */
@@ -189,6 +193,20 @@ struct ASTNode {
         struct {
             char *text;
         } comment;
+
+        /* AST_CONST_DECL: cz NAME = value -> type */
+        struct {
+            char *name;
+            DataType const_type;
+            ASTNode *value;
+        } const_decl;
+
+        /* AST_ENUM_DEF: desnum EnumName: Member1, Member2, ... */
+        struct {
+            char *name;
+            char **members;     /* Array of member names */
+            size_t member_count;
+        } enum_def;
     } data;
 };
 

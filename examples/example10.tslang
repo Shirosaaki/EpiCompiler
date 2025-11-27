@@ -1,6 +1,6 @@
-desconst PI = 3.1415 -> float
+cz PI = 3.1415 -> float
 
-desenum Jour:
+desnum Jour:
     Lundi
     Mardi
     Mercredi

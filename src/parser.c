@@ -121,6 +121,8 @@ void ast_free(ASTNode *node)
     switch (node->type) {
         case AST_PROGRAM:
             ast_list_free(&node->data.program.functions);
+            ast_list_free(&node->data.program.constants);
+            ast_list_free(&node->data.program.enums);
             break;
         case AST_FUNCTION_DEF:
             free(node->data.func_def.name);
@@ -352,6 +354,27 @@ static ASTNode *parse_primary(Parser *p)
             ASTNode *node = ast_create(AST_ARRAY_ACCESS, line, col);
             node->data.array_access.array_name = name;
             node->data.array_access.index = index;
+            return node;
+        }
+
+        /* Check for enum member access: EnumName.Member */
+        if (match_operator(p, ".")) {
+            advance(p);  /* consume '.' */
+            if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+                set_error(p, "Expected member name after '.'", current(p));
+                free(name);
+                return NULL;
+            }
+            /* Combine into EnumName.Member identifier */
+            char *member = current(p)->lexeme;
+            size_t full_len = strlen(name) + 1 + strlen(member) + 1;
+            char *full_name = malloc(full_len);
+            snprintf(full_name, full_len, "%s.%s", name, member);
+            free(name);
+            advance(p);  /* consume member name */
+            
+            ASTNode *node = ast_create(AST_IDENTIFIER, line, col);
+            node->data.identifier.name = full_name;
             return node;
         }
 
@@ -595,6 +618,121 @@ static ASTNode *parse_return(Parser *p)
 
     ASTNode *node = ast_create(AST_RETURN, line, col);
     node->data.return_stmt.value = value;
+    return node;
+}
+
+/* Parse constant declaration: cz NAME = value -> type */
+static ASTNode *parse_const_decl(Parser *p)
+{
+    Token *t = current(p);
+    size_t line = t->line, col = t->column;
+    advance(p);  /* consume 'cz' */
+
+    if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+        set_error(p, "Expected constant name after 'cz'", current(p));
+        return NULL;
+    }
+    char *name = strdup(current(p)->lexeme);
+    advance(p);  /* consume name */
+
+    if (!match_operator(p, "=")) {
+        set_error(p, "Expected '=' after constant name", current(p));
+        free(name);
+        return NULL;
+    }
+    advance(p);  /* consume '=' */
+
+    ASTNode *value = parse_expression(p);
+    if (!value) {
+        free(name);
+        return NULL;
+    }
+
+    DataType type = TYPE_UNKNOWN;
+    if (match_operator(p, "->")) {
+        advance(p);  /* consume '->' */
+        if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+            set_error(p, "Expected type after '->'", current(p));
+            free(name);
+            ast_free(value);
+            return NULL;
+        }
+        type = str_to_datatype(current(p)->lexeme);
+        advance(p);  /* consume type */
+    } else {
+        /* Infer type from value */
+        if (value->type == AST_NUMBER) {
+            type = value->data.number.is_float ? TYPE_FLOAT : TYPE_INT;
+        } else if (value->type == AST_STRING) {
+            type = TYPE_STRING;
+        }
+    }
+
+    ASTNode *node = ast_create(AST_CONST_DECL, line, col);
+    node->data.const_decl.name = name;
+    node->data.const_decl.const_type = type;
+    node->data.const_decl.value = value;
+    return node;
+}
+
+/* Parse enum definition: desnum EnumName: Member1, Member2, ... */
+static ASTNode *parse_enum_def(Parser *p)
+{
+    Token *t = current(p);
+    size_t line = t->line, col = t->column;
+    advance(p);  /* consume 'desnum' */
+
+    if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+        set_error(p, "Expected enum name after 'desnum'", current(p));
+        return NULL;
+    }
+    char *name = strdup(current(p)->lexeme);
+    advance(p);  /* consume enum name */
+
+    if (!match_operator(p, ":")) {
+        set_error(p, "Expected ':' after enum name", current(p));
+        free(name);
+        return NULL;
+    }
+    advance(p);  /* consume ':' */
+
+    /* Skip newlines after the colon (for indented block style) */
+    skip_newlines(p);
+
+    /* Parse enum members */
+    char **members = NULL;
+    size_t member_count = 0;
+    size_t member_capacity = 0;
+
+    while (current(p) && current(p)->type == TOK_IDENTIFIER) {
+        /* Resize array if needed */
+        if (member_count >= member_capacity) {
+            member_capacity = member_capacity == 0 ? 8 : member_capacity * 2;
+            members = realloc(members, member_capacity * sizeof(char *));
+        }
+        members[member_count++] = strdup(current(p)->lexeme);
+        advance(p);  /* consume member name */
+
+        /* Check for comma or newline */
+        if (match_operator(p, ",")) {
+            advance(p);  /* consume ',' */
+            skip_newlines(p);
+        } else {
+            /* Skip newlines to check for more members (indented block style) */
+            skip_newlines(p);
+        }
+    }
+
+    if (member_count == 0) {
+        set_error(p, "Enum must have at least one member", current(p));
+        free(name);
+        return NULL;
+    }
+
+    ASTNode *node = ast_create(AST_ENUM_DEF, line, col);
+    node->data.enum_def.name = name;
+    node->data.enum_def.members = members;
+    node->data.enum_def.member_count = member_count;
     return node;
 }
 
@@ -1005,6 +1143,8 @@ ASTNode *parser_parse(Parser *parser)
 {
     ASTNode *program = ast_create(AST_PROGRAM, 0, 0);
     ast_list_init(&program->data.program.functions);
+    ast_list_init(&program->data.program.constants);
+    ast_list_init(&program->data.program.enums);
 
     while (current(parser) && current(parser)->type != TOK_EOF) {
         skip_newlines(parser);
@@ -1015,6 +1155,24 @@ ASTNode *parser_parse(Parser *parser)
         if (match_keyword(parser, "desnote") || match_keyword(parser, "Desnote")) {
             while (current(parser) && current(parser)->type != TOK_NEWLINE) {
                 advance(parser);
+            }
+            continue;
+        }
+
+        /* Constant declaration: cz NAME = value */
+        if (match_keyword(parser, "cz")) {
+            ASTNode *const_node = parse_const_decl(parser);
+            if (const_node) {
+                ast_list_push(&program->data.program.constants, const_node);
+            }
+            continue;
+        }
+
+        /* Enum definition: desnum EnumName: Member1, Member2 */
+        if (match_keyword(parser, "desnum")) {
+            ASTNode *enum_node = parse_enum_def(parser);
+            if (enum_node) {
+                ast_list_push(&program->data.program.enums, enum_node);
             }
             continue;
         }
@@ -1051,6 +1209,23 @@ void ast_print(ASTNode *node, int indent)
     switch (node->type) {
         case AST_PROGRAM:
             printf("PROGRAM\n");
+            /* Print constants */
+            if (node->data.program.constants.count > 0) {
+                print_indent(indent + 1);
+                printf("CONSTANTS:\n");
+                for (size_t i = 0; i < node->data.program.constants.count; ++i) {
+                    ast_print(node->data.program.constants.items[i], indent + 2);
+                }
+            }
+            /* Print enums */
+            if (node->data.program.enums.count > 0) {
+                print_indent(indent + 1);
+                printf("ENUMS:\n");
+                for (size_t i = 0; i < node->data.program.enums.count; ++i) {
+                    ast_print(node->data.program.enums.items[i], indent + 2);
+                }
+            }
+            /* Print functions */
             for (size_t i = 0; i < node->data.program.functions.count; ++i) {
                 ast_print(node->data.program.functions.items[i], indent + 1);
             }
@@ -1082,7 +1257,6 @@ void ast_print(ASTNode *node, int indent)
                 ast_print(node->data.var_decl.init_value, indent + 2);
             }
             break;
-
         case AST_ASSIGNMENT:
             printf("ASSIGN %s =\n", node->data.assignment.var_name);
             ast_print(node->data.assignment.value, indent + 1);
@@ -1202,6 +1376,27 @@ void ast_print(ASTNode *node, int indent)
 
         case AST_CONTINUE:
             printf("CONTINUE\n");
+            break;
+
+        case AST_CONST_DECL:
+            printf("CONST %s : %s\n", node->data.const_decl.name,
+                   datatype_to_str(node->data.const_decl.const_type));
+            if (node->data.const_decl.value) {
+                print_indent(indent + 1);
+                printf("VALUE:\n");
+                ast_print(node->data.const_decl.value, indent + 2);
+            }
+            break;
+
+        case AST_ENUM_DEF:
+            printf("ENUM %s\n", node->data.enum_def.name);
+            print_indent(indent + 1);
+            printf("MEMBERS: ");
+            for (size_t i = 0; i < node->data.enum_def.member_count; ++i) {
+                printf("%s", node->data.enum_def.members[i]);
+                if (i < node->data.enum_def.member_count - 1) printf(", ");
+            }
+            printf("\n");
             break;
 
         default:

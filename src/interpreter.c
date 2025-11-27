@@ -889,6 +889,34 @@ int interpreter_run(Interpreter *interp, ASTNode *program)
     /* Create global scope */
     interp->current_scope = scope_create(NULL);
 
+    /* Register global constants */
+    for (size_t i = 0; i < program->data.program.constants.count; ++i) {
+        ASTNode *const_node = program->data.program.constants.items[i];
+        if (const_node->type == AST_CONST_DECL) {
+            Value val = eval_expression(interp, const_node->data.const_decl.value);
+            scope_set_var(interp->current_scope, const_node->data.const_decl.name, val, const_node->data.const_decl.const_type);
+        }
+    }
+
+    /* Register enum values as integer constants (EnumName.Member = index) */
+    for (size_t i = 0; i < program->data.program.enums.count; ++i) {
+        ASTNode *enum_node = program->data.program.enums.items[i];
+        if (enum_node->type == AST_ENUM_DEF) {
+            for (size_t j = 0; j < enum_node->data.enum_def.member_count; ++j) {
+                /* Create variable name: EnumName.MemberName */
+                char var_name[256];
+                snprintf(var_name, sizeof(var_name), "%s.%s", 
+                         enum_node->data.enum_def.name,
+                         enum_node->data.enum_def.members[j]);
+                Value val = value_create_int((long)j);
+                scope_set_var(interp->current_scope, var_name, val, TYPE_INT);
+                
+                /* Also register just by member name for direct access */
+                scope_set_var(interp->current_scope, enum_node->data.enum_def.members[j], val, TYPE_INT);
+            }
+        }
+    }
+
     /* Execute main function */
     ASTNode *main_node = main_func->ast_node;
     Value result = exec_block(interp, &main_node->data.func_def.body);

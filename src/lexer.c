@@ -7,9 +7,9 @@
 #include "../includes/lexer.h"
 
 static const char *keywords[] = {
-    "deschodt","desnote","destruct","desconst","desenum",
+    "deschodt","desnote","destruct","cz","desnum",
     "erif","deschelse","aer","darius","deschontinue","deschreak",
-    "peric","eric","Deschodt","Desnote","Destruct","Desconst","Desenum",
+    "peric","eric","Deschodt","Desnote","Destruct","Cz","Desnum",
     NULL
 };
 

@@ -390,6 +390,8 @@ void codegen_init(CodeGenerator *gen)
     gen->loop_start_label = -1;
     gen->loop_end_label = -1;
     gen->in_loop = 0;
+    gen->constants = NULL;
+    gen->enums = NULL;
     gen->error_msg = NULL;
     gen->error_line = 0;
     gen->entry_point = 0;
@@ -1185,14 +1187,68 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
         }
 
         case AST_IDENTIFIER: {
-            StackVar *var = stack_frame_find(&gen->stack, node->data.identifier.name);
-            if (!var) {
-                gen->error_msg = strdup("Undefined variable");
-                gen->error_line = node->line;
-                return -1;
+            const char *name = node->data.identifier.name;
+            StackVar *var = stack_frame_find(&gen->stack, name);
+            if (var) {
+                emit_mov_rax_rbp_offset(gen, var->stack_offset);
+                return 0;
             }
-            emit_mov_rax_rbp_offset(gen, var->stack_offset);
-            return 0;
+            
+            /* Check if it's a constant */
+            if (gen->constants) {
+                for (size_t i = 0; i < gen->constants->count; ++i) {
+                    ASTNode *const_node = gen->constants->items[i];
+                    if (const_node->type == AST_CONST_DECL &&
+                        strcmp(const_node->data.const_decl.name, name) == 0) {
+                        /* Compile the constant value directly */
+                        return codegen_expression(gen, const_node->data.const_decl.value);
+                    }
+                }
+            }
+            
+            /* Check if it's an enum value (EnumName.Member or just Member) */
+            if (gen->enums) {
+                /* First check for dotted syntax: EnumName.Member */
+                if (strchr(name, '.')) {
+                    char *enum_name = strdup(name);
+                    char *dot = strchr(enum_name, '.');
+                    *dot = '\0';
+                    char *member_name = dot + 1;
+                    
+                    for (size_t i = 0; i < gen->enums->count; ++i) {
+                        ASTNode *enum_node = gen->enums->items[i];
+                        if (enum_node->type == AST_ENUM_DEF &&
+                            strcmp(enum_node->data.enum_def.name, enum_name) == 0) {
+                            /* Find the member index */
+                            for (size_t j = 0; j < enum_node->data.enum_def.member_count; ++j) {
+                                if (strcmp(enum_node->data.enum_def.members[j], member_name) == 0) {
+                                    free(enum_name);
+                                    emit_mov_eax_imm32(gen, (int32_t)j);
+                                    return 0;
+                                }
+                            }
+                        }
+                    }
+                    free(enum_name);
+                }
+                
+                /* Then check for direct member access (just Member) */
+                for (size_t i = 0; i < gen->enums->count; ++i) {
+                    ASTNode *enum_node = gen->enums->items[i];
+                    if (enum_node->type == AST_ENUM_DEF) {
+                        for (size_t j = 0; j < enum_node->data.enum_def.member_count; ++j) {
+                            if (strcmp(enum_node->data.enum_def.members[j], name) == 0) {
+                                emit_mov_eax_imm32(gen, (int32_t)j);
+                                return 0;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            gen->error_msg = strdup("Undefined variable");
+            gen->error_line = node->line;
+            return -1;
         }
 
         case AST_BINARY_OP: {
@@ -1726,7 +1782,7 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                 }
                                 free(arr_name);
                             } else {
-                                /* Simple variable */
+                                /* Simple variable or constant */
                                 StackVar *var = stack_frame_find(&gen->stack, expr);
                                 if (var) {
                                     /* Load variable value into rax */
@@ -1751,13 +1807,67 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                             break;
                                     }
                                 } else {
-                                    /* Variable not found, print error marker */
-                                    size_t err_offset = string_table_add(&gen->strings, "<undefined>");
-                                    emit_mov_eax_imm32(gen, 1);
-                                    emit_mov_edi_imm32(gen, 1);
-                                    emit_mov_rsi_string_offset(gen, err_offset);
-                                    emit_mov_rdx_imm64(gen, 11);
-                                    emit_syscall(gen);
+                                    /* Check if it's a constant */
+                                    int found = 0;
+                                    if (gen->constants) {
+                                        for (size_t ci = 0; ci < gen->constants->count; ++ci) {
+                                            ASTNode *const_node = gen->constants->items[ci];
+                                            if (const_node->type == AST_CONST_DECL &&
+                                                strcmp(const_node->data.const_decl.name, expr) == 0) {
+                                                /* Evaluate constant and print */
+                                                codegen_expression(gen, const_node->data.const_decl.value);
+                                                if (const_node->data.const_decl.const_type == TYPE_FLOAT) {
+                                                    /* For float, print as fixed decimal */
+                                                    /* Since we don't have float printing, convert to string at compile time */
+                                                    if (const_node->data.const_decl.value->type == AST_NUMBER) {
+                                                        char buf[64];
+                                                        snprintf(buf, sizeof(buf), "%g", const_node->data.const_decl.value->data.number.value);
+                                                        size_t str_offset = string_table_add(&gen->strings, buf);
+                                                        size_t len = strlen(buf);
+                                                        emit_mov_eax_imm32(gen, 1);
+                                                        emit_mov_edi_imm32(gen, 1);
+                                                        emit_mov_rsi_string_offset(gen, str_offset);
+                                                        emit_mov_rdx_imm64(gen, len);
+                                                        emit_syscall(gen);
+                                                    } else {
+                                                        emit_print_int(gen);
+                                                    }
+                                                } else {
+                                                    emit_print_int(gen);
+                                                }
+                                                found = 1;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    /* Check if it's an enum value */
+                                    if (!found && gen->enums) {
+                                        for (size_t ei = 0; ei < gen->enums->count; ++ei) {
+                                            ASTNode *enum_node = gen->enums->items[ei];
+                                            if (enum_node->type == AST_ENUM_DEF) {
+                                                for (size_t ej = 0; ej < enum_node->data.enum_def.member_count; ++ej) {
+                                                    if (strcmp(enum_node->data.enum_def.members[ej], expr) == 0) {
+                                                        emit_mov_eax_imm32(gen, (int32_t)ej);
+                                                        emit_print_int(gen);
+                                                        found = 1;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            if (found) break;
+                                        }
+                                    }
+                                    
+                                    if (!found) {
+                                        /* Variable not found, print error marker */
+                                        size_t err_offset = string_table_add(&gen->strings, "<undefined>");
+                                        emit_mov_eax_imm32(gen, 1);
+                                        emit_mov_edi_imm32(gen, 1);
+                                        emit_mov_rsi_string_offset(gen, err_offset);
+                                        emit_mov_rdx_imm64(gen, 11);
+                                        emit_syscall(gen);
+                                    }
                                 }
                             }
                             free(expr);
@@ -1952,32 +2062,6 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             return 0;
         }
 
-        case AST_BREAK: {
-            if (!gen->in_loop) {
-                gen->error_msg = strdup("'break' outside of loop");
-                gen->error_line = node->line;
-                return -1;
-            }
-            /* Jump to end of loop */
-            size_t jmp_pos = gen->code.size + 1;
-            emit_jmp_rel32(gen, 0);
-            codegen_patch_label(gen, gen->loop_end_label, jmp_pos);
-            return 0;
-        }
-
-        case AST_CONTINUE: {
-            if (!gen->in_loop) {
-                gen->error_msg = strdup("'continue' outside of loop");
-                gen->error_line = node->line;
-                return -1;
-            }
-            /* Jump to loop start (increment section for for-loop) */
-            size_t jmp_pos = gen->code.size + 1;
-            emit_jmp_rel32(gen, 0);
-            codegen_patch_label(gen, gen->loop_start_label, jmp_pos);
-            return 0;
-        }
-
         case AST_BLOCK: {
             for (size_t i = 0; i < node->data.block.statements.count; ++i) {
                 if (codegen_statement(gen, node->data.block.statements.items[i]) != 0)
@@ -2072,6 +2156,10 @@ int codegen_compile(CodeGenerator *gen, ASTNode *program)
         gen->error_msg = strdup("Invalid program AST");
         return -1;
     }
+
+    /* Store constants and enums in the generator for later lookup */
+    gen->constants = &program->data.program.constants;
+    gen->enums = &program->data.program.enums;
 
     /* First pass: register all functions */
     for (size_t i = 0; i < program->data.program.functions.count; ++i) {

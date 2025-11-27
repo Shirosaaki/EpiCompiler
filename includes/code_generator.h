@@ -120,6 +120,10 @@ typedef struct {
     int loop_end_label;       /* Label for break (end of loop) */
     int in_loop;              /* Whether we're inside a loop */
     
+    /* Constants and enums from program */
+    ASTNodeList *constants;   /* Pointer to program's constants list */
+    ASTNodeList *enums;       /* Pointer to program's enums list */
+    
     /* Error handling */
     char *error_msg;
     size_t error_line;
