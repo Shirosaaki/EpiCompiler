@@ -310,6 +310,8 @@ void interpreter_init(Interpreter *interp)
     interp->error_line = 0;
     interp->exit_code = 0;
     interp->has_returned = 0;
+    interp->has_break = 0;
+    interp->has_continue = 0;
 }
 
 void interpreter_free(Interpreter *interp)
@@ -753,7 +755,7 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
         }
 
         case AST_WHILE: {
-            while (!interp->has_returned) {
+            while (!interp->has_returned && !interp->has_break) {
                 Value cond = eval_expression(interp, node->data.conditional.condition);
                 int is_true = 0;
 
@@ -769,6 +771,14 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 Value result = exec_block(interp, &node->data.conditional.body);
                 if (interp->has_returned) {
                     return result;
+                }
+                if (interp->has_continue) {
+                    interp->has_continue = 0;  /* Reset continue flag for next iteration */
+                }
+                if (interp->has_break) {
+                    interp->has_break = 0;  /* Reset break flag */
+                    value_free(&result);
+                    break;
                 }
                 value_free(&result);
             }
@@ -798,7 +808,7 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
             scope_set_var(interp->current_scope, node->data.for_loop.var_name,
                          value_create_int(start), TYPE_INT);
 
-            for (long i = start; (step > 0 ? i < end : i > end) && !interp->has_returned; i += step) {
+            for (long i = start; (step > 0 ? i < end : i > end) && !interp->has_returned && !interp->has_break; i += step) {
                 /* Update loop variable */
                 scope_update_var(interp->current_scope, node->data.for_loop.var_name,
                                 value_create_int(i));
@@ -807,8 +817,26 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 if (interp->has_returned) {
                     return result;
                 }
+                if (interp->has_continue) {
+                    interp->has_continue = 0;  /* Reset continue flag for next iteration */
+                }
+                if (interp->has_break) {
+                    interp->has_break = 0;  /* Reset break flag and exit loop */
+                    value_free(&result);
+                    break;
+                }
                 value_free(&result);
             }
+            return value_create_void();
+        }
+
+        case AST_BREAK: {
+            interp->has_break = 1;
+            return value_create_void();
+        }
+
+        case AST_CONTINUE: {
+            interp->has_continue = 1;
             return value_create_void();
         }
 
@@ -822,7 +850,7 @@ static Value exec_block(Interpreter *interp, ASTNodeList *stmts)
 {
     Value last_val = value_create_void();
 
-    for (size_t i = 0; i < stmts->count && !interp->has_returned; ++i) {
+    for (size_t i = 0; i < stmts->count && !interp->has_returned && !interp->has_break && !interp->has_continue; ++i) {
         value_free(&last_val);
         last_val = exec_statement(interp, stmts->items[i]);
 

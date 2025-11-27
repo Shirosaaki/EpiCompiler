@@ -810,6 +810,20 @@ static ASTNode *parse_statement(Parser *p)
         return parse_for(p);
     }
 
+    /* Continue statement: deschontinue */
+    if (match_keyword(p, "deschontinue")) {
+        ASTNode *node = ast_create(AST_CONTINUE, t->line, t->column);
+        advance(p);  /* consume 'deschontinue' */
+        return node;
+    }
+
+    /* Break statement: deschreak */
+    if (match_keyword(p, "deschreak")) {
+        ASTNode *node = ast_create(AST_BREAK, t->line, t->column);
+        advance(p);  /* consume 'deschreak' */
+        return node;
+    }
+
     /* Assignment or expression starting with identifier */
     if (t->type == TOK_IDENTIFIER) {
         /* Look ahead for '=' or '[' (for array assignment) */
@@ -1180,6 +1194,14 @@ void ast_print(ASTNode *node, int indent)
             for (size_t i = 0; i < node->data.func_call.args.count; ++i) {
                 ast_print(node->data.func_call.args.items[i], indent + 1);
             }
+            break;
+
+        case AST_BREAK:
+            printf("BREAK\n");
+            break;
+
+        case AST_CONTINUE:
+            printf("CONTINUE\n");
             break;
 
         default:

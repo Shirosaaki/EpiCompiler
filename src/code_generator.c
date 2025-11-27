@@ -387,6 +387,9 @@ void codegen_init(CodeGenerator *gen)
     gen->patches.capacity = 0;
     
     gen->current_function = NULL;
+    gen->loop_start_label = -1;
+    gen->loop_end_label = -1;
+    gen->in_loop = 0;
     gen->error_msg = NULL;
     gen->error_line = 0;
     gen->entry_point = 0;
@@ -1601,6 +1604,30 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             return 0;
         }
 
+        case AST_BREAK: {
+            if (gen->loop_end_label == -1) {
+                fprintf(stderr, "Error: 'deschreak' (break) used outside of loop\n");
+                return -1;
+            }
+            /* Jump to end of loop */
+            size_t jmp_pos = gen->code.size + 1;
+            emit_jmp_rel32(gen, 0);
+            codegen_patch_label(gen, gen->loop_end_label, jmp_pos);
+            return 0;
+        }
+
+        case AST_CONTINUE: {
+            if (gen->loop_start_label == -1) {
+                fprintf(stderr, "Error: 'deschontinue' (continue) used outside of loop\n");
+                return -1;
+            }
+            /* Jump to start/continue point of loop */
+            size_t jmp_pos = gen->code.size + 1;
+            emit_jmp_rel32(gen, 0);
+            codegen_patch_label(gen, gen->loop_start_label, jmp_pos);
+            return 0;
+        }
+
         case AST_PRINT: {
             /* For print, we need to handle format strings with {var} interpolation */
             ASTNode *val = node->data.print_stmt.value;
@@ -1807,6 +1834,14 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             int start_label = codegen_create_label(gen);
             int end_label = codegen_create_label(gen);
             
+            /* Save outer loop context */
+            int saved_start = gen->loop_start_label;
+            int saved_end = gen->loop_end_label;
+            
+            /* Set up loop context for break/continue */
+            gen->loop_start_label = start_label;  /* continue jumps back to condition */
+            gen->loop_end_label = end_label;
+            
             /* Start of loop */
             codegen_set_label(gen, start_label);
             
@@ -1836,6 +1871,11 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             
             /* End of loop */
             codegen_set_label(gen, end_label);
+            
+            /* Restore outer loop context */
+            gen->loop_start_label = saved_start;
+            gen->loop_end_label = saved_end;
+            
             return 0;
         }
 
@@ -1851,6 +1891,17 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             
             int start_label = codegen_create_label(gen);
             int end_label = codegen_create_label(gen);
+            int continue_label = codegen_create_label(gen);  /* Label for continue (before increment) */
+            
+            /* Save outer loop context */
+            int saved_start = gen->loop_start_label;
+            int saved_end = gen->loop_end_label;
+            int saved_in_loop = gen->in_loop;
+            
+            /* Set up loop context for break/continue */
+            gen->loop_start_label = continue_label;  /* continue jumps to increment section */
+            gen->loop_end_label = end_label;
+            gen->in_loop = 1;
             
             codegen_set_label(gen, start_label);
             
@@ -1875,6 +1926,9 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                     return -1;
             }
             
+            /* Continue label - continue jumps here to do the increment */
+            codegen_set_label(gen, continue_label);
+            
             /* Increment */
             emit_mov_rax_rbp_offset(gen, var->stack_offset);
             emit_rex_w(gen);
@@ -1889,6 +1943,38 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             memcpy(gen->code.data + jmp_pos, &rel, 4);
             
             codegen_set_label(gen, end_label);
+            
+            /* Restore outer loop context */
+            gen->loop_start_label = saved_start;
+            gen->loop_end_label = saved_end;
+            gen->in_loop = saved_in_loop;
+            
+            return 0;
+        }
+
+        case AST_BREAK: {
+            if (!gen->in_loop) {
+                gen->error_msg = strdup("'break' outside of loop");
+                gen->error_line = node->line;
+                return -1;
+            }
+            /* Jump to end of loop */
+            size_t jmp_pos = gen->code.size + 1;
+            emit_jmp_rel32(gen, 0);
+            codegen_patch_label(gen, gen->loop_end_label, jmp_pos);
+            return 0;
+        }
+
+        case AST_CONTINUE: {
+            if (!gen->in_loop) {
+                gen->error_msg = strdup("'continue' outside of loop");
+                gen->error_line = node->line;
+                return -1;
+            }
+            /* Jump to loop start (increment section for for-loop) */
+            size_t jmp_pos = gen->code.size + 1;
+            emit_jmp_rel32(gen, 0);
+            codegen_patch_label(gen, gen->loop_start_label, jmp_pos);
             return 0;
         }
 

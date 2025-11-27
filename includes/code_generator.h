@@ -115,6 +115,11 @@ typedef struct {
     /* Current function being compiled */
     char *current_function;
     
+    /* Loop context for break/continue */
+    int loop_start_label;     /* Label for continue (start of loop) */
+    int loop_end_label;       /* Label for break (end of loop) */
+    int in_loop;              /* Whether we're inside a loop */
+    
     /* Error handling */
     char *error_msg;
     size_t error_line;

@@ -75,6 +75,8 @@ typedef struct Interpreter {
     size_t error_line;
     int exit_code;
     int has_returned;
+    int has_break;      /* Flag for break statement */
+    int has_continue;   /* Flag for continue statement */
 } Interpreter;
 
 /* ========== Interpreter Functions ========== */

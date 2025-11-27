@@ -26,6 +26,8 @@ typedef enum ASTNodeType {
     AST_ELSE,
     AST_WHILE,
     AST_FOR,
+    AST_BREAK,             /* deschreak - break out of loop */
+    AST_CONTINUE,          /* deschontinue - skip to next iteration */
     AST_BLOCK,
     AST_BINARY_OP,
     AST_UNARY_OP,
