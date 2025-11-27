@@ -193,6 +193,46 @@ int stack_frame_push_var(StackFrame *sf, const char *name, DataType type)
     sf->items[sf->count].type = type;
     sf->items[sf->count].string_data_offset = 0;
     sf->items[sf->count].string_length = 0;
+    sf->items[sf->count].is_array = 0;
+    sf->items[sf->count].array_capacity = 0;
+    sf->items[sf->count].array_size_offset = 0;
+    sf->items[sf->count].array_last_val_offset = 0;
+    sf->count++;
+    return 0;
+}
+
+int stack_frame_push_array(StackFrame *sf, const char *name, DataType type, size_t capacity)
+{
+    if (sf->count >= sf->capacity) {
+        size_t new_cap = sf->capacity == 0 ? 8 : sf->capacity * 2;
+        StackVar *new_items = realloc(sf->items, new_cap * sizeof(StackVar));
+        if (!new_items) return -1;
+        sf->items = new_items;
+        sf->capacity = new_cap;
+    }
+
+    /* Allocate: 8 bytes per element + 8 bytes for size + 8 bytes for last_val */
+    size_t array_size = capacity * 8;
+    sf->current_offset -= (int)array_size;
+    int array_base = sf->current_offset;
+    
+    /* Allocate space for current size tracker */
+    sf->current_offset -= 8;
+    int size_offset = sf->current_offset;
+    
+    /* Allocate space for last value tracker */
+    sf->current_offset -= 8;
+    int last_val_offset = sf->current_offset;
+    
+    sf->items[sf->count].name = strdup(name);
+    sf->items[sf->count].stack_offset = array_base;  /* Points to base of array */
+    sf->items[sf->count].type = type;
+    sf->items[sf->count].string_data_offset = 0;
+    sf->items[sf->count].string_length = 0;
+    sf->items[sf->count].is_array = 1;
+    sf->items[sf->count].array_capacity = capacity;
+    sf->items[sf->count].array_size_offset = size_offset;
+    sf->items[sf->count].array_last_val_offset = last_val_offset;
     sf->count++;
     return 0;
 }
@@ -523,6 +563,12 @@ static void emit_pop_rbx(CodeGenerator *gen)
     buffer_write_byte(&gen->code, 0x5B);
 }
 
+/* push rbx */
+static void emit_push_rbx(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x53);
+}
+
 /* ret */
 static void emit_ret(CodeGenerator *gen)
 {
@@ -542,6 +588,66 @@ static void emit_add_rax_rbx(CodeGenerator *gen)
     emit_rex_w(gen);
     buffer_write_byte(&gen->code, 0x01);
     buffer_write_byte(&gen->code, 0xD8);
+}
+
+/* inc rcx */
+static void emit_inc_rcx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0xFF);
+    buffer_write_byte(&gen->code, 0xC1);
+}
+
+/* mov rcx, rax */
+static void emit_mov_rcx_rax(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xC1);
+}
+
+/* mov rax, rcx */
+static void emit_mov_rax_rcx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xC8);
+}
+
+/* mov rax, rbx */
+static void emit_mov_rax_rbx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xD8);
+}
+
+/* cmp rcx, rbx */
+static void emit_cmp_rcx_rbx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x39);
+    buffer_write_byte(&gen->code, 0xD9);
+}
+
+/* cmp rax, rcx */
+static void emit_cmp_rax_rcx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x39);
+    buffer_write_byte(&gen->code, 0xC8);
+}
+
+/* push rcx */
+static void emit_push_rcx(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x51);
+}
+
+/* pop rcx */
+static void emit_pop_rcx(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x59);
 }
 
 /* sub rax, rbx */
@@ -575,6 +681,40 @@ static void emit_mov_rbx_rax(CodeGenerator *gen)
     emit_rex_w(gen);
     buffer_write_byte(&gen->code, 0x89);
     buffer_write_byte(&gen->code, 0xC3);
+}
+
+/* imul rbx, rbx, 8 - multiply rbx by 8 */
+static void emit_imul_rbx_8(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x6B);  /* imul r64, r/m64, imm8 */
+    buffer_write_byte(&gen->code, 0xDB);  /* rbx, rbx */
+    buffer_write_byte(&gen->code, 0x08);  /* 8 */
+}
+
+/* lea rax, [rbp + offset] */
+static void emit_lea_rax_rbp_offset(CodeGenerator *gen, int32_t offset)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x8D);  /* lea */
+    buffer_write_byte(&gen->code, 0x85);  /* rax, [rbp + disp32] */
+    buffer_write(&gen->code, &offset, 4);
+}
+
+/* mov rax, [rax] - load value from address in rax */
+static void emit_mov_rax_ptr_rax(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x8B);  /* mov */
+    buffer_write_byte(&gen->code, 0x00);  /* rax, [rax] */
+}
+
+/* mov [rax], rbx - store rbx at address in rax */
+static void emit_mov_ptr_rax_rbx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);  /* mov */
+    buffer_write_byte(&gen->code, 0x18);  /* [rax], rbx */
 }
 
 /* idiv rbx */
@@ -672,6 +812,30 @@ static void emit_jne_rel32(CodeGenerator *gen, int32_t rel)
 {
     buffer_write_byte(&gen->code, 0x0F);
     buffer_write_byte(&gen->code, 0x85);
+    buffer_write_u32(&gen->code, (uint32_t)rel);
+}
+
+/* jl rel32 - jump if less (signed) */
+static void emit_jl_rel32(CodeGenerator *gen, int32_t rel)
+{
+    buffer_write_byte(&gen->code, 0x0F);
+    buffer_write_byte(&gen->code, 0x8C);
+    buffer_write_u32(&gen->code, (uint32_t)rel);
+}
+
+/* jle rel32 - jump if less or equal (signed) */
+static void emit_jle_rel32(CodeGenerator *gen, int32_t rel)
+{
+    buffer_write_byte(&gen->code, 0x0F);
+    buffer_write_byte(&gen->code, 0x8E);
+    buffer_write_u32(&gen->code, (uint32_t)rel);
+}
+
+/* jge rel32 - jump if greater or equal (signed) */
+static void emit_jge_rel32(CodeGenerator *gen, int32_t rel)
+{
+    buffer_write_byte(&gen->code, 0x0F);
+    buffer_write_byte(&gen->code, 0x8D);
     buffer_write_u32(&gen->code, (uint32_t)rel);
 }
 
@@ -1124,6 +1288,34 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             return 0;
         }
 
+        case AST_ARRAY_ACCESS: {
+            /* Get array variable */
+            StackVar *arr = stack_frame_find(&gen->stack, node->data.array_access.array_name);
+            if (!arr || !arr->is_array) {
+                gen->error_msg = strdup("Undefined array");
+                gen->error_line = node->line;
+                return -1;
+            }
+            
+            /* Evaluate index expression into rax */
+            if (codegen_expression(gen, node->data.array_access.index) != 0) return -1;
+            
+            /* Calculate offset: index * 8 */
+            emit_mov_rbx_rax(gen);  /* rbx = index */
+            emit_imul_rbx_8(gen);   /* rbx = index * 8 */
+            
+            /* Load address of array base: rbp + stack_offset */
+            emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+            
+            /* Add index offset to get actual element address */
+            emit_add_rax_rbx(gen);
+            
+            /* Load value at that address */
+            emit_mov_rax_ptr_rax(gen);
+            
+            return 0;
+        }
+
         default:
             gen->error_msg = strdup("Unsupported expression type");
             gen->error_line = node->line;
@@ -1139,7 +1331,35 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
 
     switch (node->type) {
         case AST_VAR_DECL: {
-            /* Allocate stack space for variable */
+            /* Check if it's an array type */
+            DataType dtype = node->data.var_decl.var_type;
+            if (dtype == TYPE_INT_ARRAY || dtype == TYPE_FLOAT_ARRAY || 
+                dtype == TYPE_STRING_ARRAY) {
+                /* Allocate array with default capacity of 64 elements */
+                DataType elem_type = (dtype == TYPE_INT_ARRAY) ? TYPE_INT :
+                                    (dtype == TYPE_FLOAT_ARRAY) ? TYPE_FLOAT : TYPE_STRING;
+                stack_frame_push_array(&gen->stack, node->data.var_decl.name, 
+                                      elem_type, 64);
+                
+                /* Initialize array to zeros */
+                StackVar *arr = stack_frame_find(&gen->stack, node->data.var_decl.name);
+                for (size_t i = 0; i < arr->array_capacity; i++) {
+                    emit_mov_eax_imm32(gen, 0);
+                    emit_mov_rbp_offset_rax(gen, arr->stack_offset + (int)(i * 8));
+                }
+                
+                /* Initialize size to 0 */
+                emit_mov_eax_imm32(gen, 0);
+                emit_mov_rbp_offset_rax(gen, arr->array_size_offset);
+                
+                /* Initialize last_val to 0 */
+                emit_mov_eax_imm32(gen, 0);
+                emit_mov_rbp_offset_rax(gen, arr->array_last_val_offset);
+                
+                return 0;
+            }
+            
+            /* Regular variable - allocate stack space */
             stack_frame_push_var(&gen->stack, node->data.var_decl.name, 
                                 node->data.var_decl.var_type);
             
@@ -1176,6 +1396,186 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             if (codegen_expression(gen, node->data.assignment.value) != 0)
                 return -1;
             emit_mov_rbp_offset_rax(gen, var->stack_offset);
+            return 0;
+        }
+
+        case AST_ARRAY_ASSIGN: {
+            /* 
+             * Auto-fill array assignment:
+             * If index > current_size and current_size > 0:
+             *   Fill arr[current_size..index-1] with last_value
+             * Then set arr[index] = value
+             * Update current_size = index + 1, last_value = value
+             *
+             * We use callee-saved registers to simplify:
+             * - Store value, index, last_value on stack
+             * - Use rcx as loop counter
+             */
+            StackVar *arr = stack_frame_find(&gen->stack, node->data.array_assign.array_name);
+            if (!arr || !arr->is_array) {
+                gen->error_msg = strdup("Undefined array");
+                gen->error_line = node->line;
+                return -1;
+            }
+            
+            /* Evaluate value expression */
+            if (codegen_expression(gen, node->data.array_assign.value) != 0) return -1;
+            /* Store value temporarily at a known stack location */
+            emit_push_rax(gen);  /* Stack: [value] */
+            
+            /* Evaluate index expression */
+            if (codegen_expression(gen, node->data.array_assign.index) != 0) return -1;
+            emit_push_rax(gen);  /* Stack: [value, index] */
+            
+            /* === Auto-fill check === */
+            /* Load current_size */
+            emit_mov_rax_rbp_offset(gen, arr->array_size_offset);
+            emit_push_rax(gen);  /* Stack: [value, index, current_size] */
+            
+            /* Load index for comparison */
+            emit_mov_rax_rbp_offset(gen, gen->stack.current_offset + 8);  /* Get index from stack */
+            /* Actually, let's use cleaner approach - reload from stack positions */
+            
+            /* Stack layout: RSP -> [current_size, index, value] */
+            /* Pop all and redo with known positions */
+            emit_pop_rcx(gen);  /* rcx = current_size */
+            emit_pop_rbx(gen);  /* rbx = index */
+            emit_pop_rax(gen);  /* rax = value */
+            
+            /* Save them to known stack positions */
+            emit_push_rax(gen);  /* value at [rsp] */
+            emit_push_rbx(gen);  /* index at [rsp+8] - wait, push decrements */
+            emit_push_rcx(gen);  /* current_size at [rsp+16] */
+            /* Stack: RSP -> [current_size, index, value] */
+            
+            /* Check: if current_size >= index OR current_size == 0, skip fill */
+            emit_cmp_rcx_rbx(gen);  /* current_size vs index */
+            int skip_fill = codegen_create_label(gen);
+            size_t jge_pos = gen->code.size + 2;
+            emit_jge_rel32(gen, 0);
+            codegen_patch_label(gen, skip_fill, jge_pos);
+            
+            /* Check current_size == 0 */
+            emit_mov_rax_rcx(gen);
+            emit_cmp_rax_0(gen);
+            size_t je_pos = gen->code.size + 2;
+            emit_je_rel32(gen, 0);
+            codegen_patch_label(gen, skip_fill, je_pos);
+            
+            /* === Auto-fill loop === */
+            /* rcx = current_size (loop counter, already set) */
+            /* rbx = index (target, already set) */
+            /* Load last_value and store on stack */
+            emit_mov_rax_rbp_offset(gen, arr->array_last_val_offset);
+            emit_push_rax(gen);  /* Stack: [last_val, current_size, index, value] */
+            
+            /* Also save target index (rbx) on stack since we'll clobber it */
+            emit_push_rbx(gen);  /* Stack: [target_idx, last_val, current_size, index, value] */
+            
+            int loop_start = codegen_create_label(gen);
+            codegen_set_label(gen, loop_start);
+            
+            /* Restore target index for comparison */
+            emit_pop_rbx(gen);  /* rbx = target index */
+            emit_push_rbx(gen);  /* Put it back */
+            
+            /* Check rcx < rbx (loop_counter < target_index) */
+            emit_cmp_rcx_rbx(gen);
+            int loop_end = codegen_create_label(gen);
+            size_t jge_loop = gen->code.size + 2;
+            emit_jge_rel32(gen, 0);
+            codegen_patch_label(gen, loop_end, jge_loop);
+            
+            /* Store last_value at arr[rcx] */
+            /* Calculate address: base + rcx * 8 */
+            emit_push_rcx(gen);  /* Save loop counter */
+            
+            emit_mov_rax_rcx(gen);  /* rax = loop counter */
+            emit_mov_rbx_rax(gen);  /* rbx = loop counter */
+            emit_imul_rbx_8(gen);   /* rbx = loop counter * 8 */
+            emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+            emit_add_rax_rbx(gen);  /* rax = &arr[loop_counter] */
+            
+            /* Get last_value from stack: Stack is [rcx, target_idx, last_val, ...] */
+            /* last_val is at [rsp + 16] */
+            emit_push_rax(gen);  /* Save address, Stack: [addr, rcx, target_idx, last_val, ...] */
+            emit_mov_rax_rbp_offset(gen, arr->array_last_val_offset);  /* Re-load last_val from memory */
+            emit_mov_rbx_rax(gen);  /* rbx = last_val */
+            emit_pop_rax(gen);  /* rax = address */
+            
+            /* Store last_val at address */
+            emit_mov_ptr_rax_rbx(gen);
+            
+            /* Restore and increment loop counter */
+            emit_pop_rcx(gen);  /* rcx = loop counter */
+            emit_inc_rcx(gen);
+            
+            /* Jump back */
+            size_t jmp_pos = gen->code.size + 1;
+            emit_jmp_rel32(gen, 0);
+            int32_t rel = (int32_t)(gen->labels[loop_start].offset - (jmp_pos + 4));
+            memcpy(gen->code.data + jmp_pos, &rel, 4);
+            
+            codegen_set_label(gen, loop_end);
+            
+            /* Clean up: pop target_idx and last_val from stack */
+            emit_pop_rax(gen);  /* Discard target_idx */
+            emit_pop_rax(gen);  /* Discard last_val, Stack: [current_size, index, value] */
+            
+            codegen_set_label(gen, skip_fill);
+            
+            /* === Actual assignment === */
+            /* Stack: [current_size, index, value] */
+            emit_pop_rcx(gen);  /* rcx = current_size (discard) */
+            emit_pop_rbx(gen);  /* rbx = index */
+            emit_pop_rax(gen);  /* rax = value */
+            
+            /* Save value for later */
+            emit_push_rax(gen);
+            emit_push_rbx(gen);  /* Stack: [index, value] */
+            
+            /* Calculate address: base + index * 8 */
+            emit_imul_rbx_8(gen);
+            emit_push_rax(gen);  /* Save value */
+            emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+            emit_add_rax_rbx(gen);  /* rax = &arr[index] */
+            emit_pop_rbx(gen);  /* rbx = value */
+            
+            /* Store value */
+            emit_mov_ptr_rax_rbx(gen);
+            
+            /* Update size if needed: size = max(size, index + 1) */
+            emit_pop_rbx(gen);  /* rbx = index */
+            emit_pop_rax(gen);  /* rax = value */
+            emit_push_rax(gen);  /* Keep value for last_val update */
+            
+            /* rbx = index, calculate index + 1 */
+            emit_mov_rax_rbx(gen);
+            emit_push_rax(gen);  /* Save index */
+            emit_mov_rcx_rax(gen);
+            emit_inc_rcx(gen);  /* rcx = index + 1 */
+            
+            /* Load current size */
+            emit_mov_rax_rbp_offset(gen, arr->array_size_offset);
+            
+            /* If current_size >= index + 1, skip update */
+            emit_cmp_rax_rcx(gen);
+            int skip_size = codegen_create_label(gen);
+            size_t jge_size = gen->code.size + 2;
+            emit_jge_rel32(gen, 0);
+            codegen_patch_label(gen, skip_size, jge_size);
+            
+            /* Update size */
+            emit_mov_rax_rcx(gen);
+            emit_mov_rbp_offset_rax(gen, arr->array_size_offset);
+            
+            codegen_set_label(gen, skip_size);
+            
+            /* Update last_val */
+            emit_pop_rax(gen);  /* Discard saved index */
+            emit_pop_rax(gen);  /* rax = value */
+            emit_mov_rbp_offset_rax(gen, arr->array_last_val_offset);
+            
             return 0;
         }
 
@@ -1241,46 +1641,99 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                         while (i < fmt_len && fmt[i] != '}') i++;
                         
                         if (i < fmt_len && fmt[i] == '}') {
-                            /* Extract variable name */
-                            size_t var_len = i - var_start;
-                            char *var_name = malloc(var_len + 1);
-                            memcpy(var_name, fmt + var_start, var_len);
-                            var_name[var_len] = '\0';
+                            /* Extract expression */
+                            size_t expr_len = i - var_start;
+                            char *expr = malloc(expr_len + 1);
+                            memcpy(expr, fmt + var_start, expr_len);
+                            expr[expr_len] = '\0';
                             
-                            /* Find variable and print its value */
-                            StackVar *var = stack_frame_find(&gen->stack, var_name);
-                            if (var) {
-                                /* Load variable value into rax */
-                                emit_mov_rax_rbp_offset(gen, var->stack_offset);
+                            /* Check if it's an array access: name[index] */
+                            char *bracket = strchr(expr, '[');
+                            if (bracket) {
+                                /* Parse array access */
+                                size_t name_len = bracket - expr;
+                                char *arr_name = malloc(name_len + 1);
+                                memcpy(arr_name, expr, name_len);
+                                arr_name[name_len] = '\0';
                                 
-                                /* Print based on variable type */
-                                switch (var->type) {
-                                    case TYPE_INT:
+                                char *idx_start = bracket + 1;
+                                char *idx_end = strchr(idx_start, ']');
+                                if (idx_end) {
+                                    size_t idx_len = idx_end - idx_start;
+                                    char *idx_expr = malloc(idx_len + 1);
+                                    memcpy(idx_expr, idx_start, idx_len);
+                                    idx_expr[idx_len] = '\0';
+                                    
+                                    StackVar *arr = stack_frame_find(&gen->stack, arr_name);
+                                    StackVar *idx_var = stack_frame_find(&gen->stack, idx_expr);
+                                    
+                                    if (arr && arr->is_array) {
+                                        /* Load index value */
+                                        if (idx_var) {
+                                            emit_mov_rax_rbp_offset(gen, idx_var->stack_offset);
+                                        } else {
+                                            /* Try parsing as number */
+                                            long idx_val = atol(idx_expr);
+                                            emit_mov_rax_imm64(gen, (uint64_t)idx_val);
+                                        }
+                                        emit_mov_rbx_rax(gen);  /* rbx = index */
+                                        emit_imul_rbx_8(gen);   /* rbx = index * 8 */
+                                        
+                                        /* Load array element */
+                                        emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+                                        emit_add_rax_rbx(gen);
+                                        emit_mov_rax_ptr_rax(gen);
+                                        
+                                        /* Print as int */
                                         emit_print_int(gen);
-                                        break;
-                                    case TYPE_CHAR:
-                                        /* Print char as actual character */
-                                        emit_print_char(gen);
-                                        break;
-                                    case TYPE_STRING:
-                                        /* For string, rax contains string address (after patching) */
-                                        /* Use var->string_length for the length */
-                                        emit_print_string_offset(gen, var->string_length);
-                                        break;
-                                    default:
-                                        emit_print_int(gen);  /* Default to int */
-                                        break;
+                                    } else {
+                                        /* Array not found */
+                                        size_t err_offset = string_table_add(&gen->strings, "<undefined>");
+                                        emit_mov_eax_imm32(gen, 1);
+                                        emit_mov_edi_imm32(gen, 1);
+                                        emit_mov_rsi_string_offset(gen, err_offset);
+                                        emit_mov_rdx_imm64(gen, 11);
+                                        emit_syscall(gen);
+                                    }
+                                    free(idx_expr);
                                 }
+                                free(arr_name);
                             } else {
-                                /* Variable not found, print error marker */
-                                size_t err_offset = string_table_add(&gen->strings, "<undefined>");
-                                emit_mov_eax_imm32(gen, 1);
-                                emit_mov_edi_imm32(gen, 1);
-                                emit_mov_rsi_string_offset(gen, err_offset);
-                                emit_mov_rdx_imm64(gen, 11);
-                                emit_syscall(gen);
+                                /* Simple variable */
+                                StackVar *var = stack_frame_find(&gen->stack, expr);
+                                if (var) {
+                                    /* Load variable value into rax */
+                                    emit_mov_rax_rbp_offset(gen, var->stack_offset);
+                                    
+                                    /* Print based on variable type */
+                                    switch (var->type) {
+                                        case TYPE_INT:
+                                            emit_print_int(gen);
+                                            break;
+                                        case TYPE_CHAR:
+                                            /* Print char as actual character */
+                                            emit_print_char(gen);
+                                            break;
+                                        case TYPE_STRING:
+                                            /* For string, rax contains string address (after patching) */
+                                            /* Use var->string_length for the length */
+                                            emit_print_string_offset(gen, var->string_length);
+                                            break;
+                                        default:
+                                            emit_print_int(gen);  /* Default to int */
+                                            break;
+                                    }
+                                } else {
+                                    /* Variable not found, print error marker */
+                                    size_t err_offset = string_table_add(&gen->strings, "<undefined>");
+                                    emit_mov_eax_imm32(gen, 1);
+                                    emit_mov_edi_imm32(gen, 1);
+                                    emit_mov_rsi_string_offset(gen, err_offset);
+                                    emit_mov_rdx_imm64(gen, 11);
+                                    emit_syscall(gen);
+                                }
                             }
-                            free(var_name);
+                            free(expr);
                             i++;  /* Skip '}' */
                         }
                     }

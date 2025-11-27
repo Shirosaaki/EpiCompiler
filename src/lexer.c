@@ -555,7 +555,14 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                 }
             }
             if (is_assign) {
-                if (!prev || prev->type != TOK_IDENTIFIER) {
+                /* Allow assignment after identifier OR after ']' (for array access) */
+                int valid_lhs = 0;
+                if (prev && prev->type == TOK_IDENTIFIER) {
+                    valid_lhs = 1;
+                } else if (prev && prev->type == TOK_OPERATOR && strcmp(prev->lexeme, "]") == 0) {
+                    valid_lhs = 1;  /* Array element assignment: arr[i] = value */
+                }
+                if (!valid_lhs) {
                     char msg[128];
                     snprintf(msg, sizeof(msg), "Assignment '=' must follow a variable name on the left-hand side");
                     free(src);

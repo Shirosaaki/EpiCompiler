@@ -78,6 +78,11 @@ DataType str_to_datatype(const char *str)
     if (strcmp(str, "float") == 0) return TYPE_FLOAT;
     if (strcmp(str, "string") == 0) return TYPE_STRING;
     if (strcmp(str, "void") == 0) return TYPE_VOID;
+    if (strcmp(str, "char") == 0) return TYPE_CHAR;
+    if (strcmp(str, "int[]") == 0) return TYPE_INT_ARRAY;
+    if (strcmp(str, "float[]") == 0) return TYPE_FLOAT_ARRAY;
+    if (strcmp(str, "string[]") == 0) return TYPE_STRING_ARRAY;
+    if (strcmp(str, "char[]") == 0) return TYPE_CHAR_ARRAY;
     return TYPE_UNKNOWN;
 }
 
@@ -88,6 +93,11 @@ const char *datatype_to_str(DataType type)
         case TYPE_FLOAT: return "float";
         case TYPE_STRING: return "string";
         case TYPE_VOID: return "void";
+        case TYPE_CHAR: return "char";
+        case TYPE_INT_ARRAY: return "int[]";
+        case TYPE_FLOAT_ARRAY: return "float[]";
+        case TYPE_STRING_ARRAY: return "string[]";
+        case TYPE_CHAR_ARRAY: return "char[]";
         default: return "unknown";
     }
 }
@@ -124,6 +134,15 @@ void ast_free(ASTNode *node)
         case AST_ASSIGNMENT:
             free(node->data.assignment.var_name);
             ast_free(node->data.assignment.value);
+            break;
+        case AST_ARRAY_ACCESS:
+            free(node->data.array_access.array_name);
+            ast_free(node->data.array_access.index);
+            break;
+        case AST_ARRAY_ASSIGN:
+            free(node->data.array_assign.array_name);
+            ast_free(node->data.array_assign.index);
+            ast_free(node->data.array_assign.value);
             break;
         case AST_RETURN:
             ast_free(node->data.return_stmt.value);
@@ -285,7 +304,7 @@ static ASTNode *parse_primary(Parser *p)
         return node;
     }
 
-    /* Identifier or function call */
+    /* Identifier or function call or array access */
     if (t->type == TOK_IDENTIFIER) {
         char *name = strdup(t->lexeme);
         size_t line = t->line, col = t->column;
@@ -315,6 +334,24 @@ static ASTNode *parse_primary(Parser *p)
             } else {
                 set_error(p, "Expected ')' in function call", current(p));
             }
+            return node;
+        }
+        
+        /* Check if it's an array access: arr[index] */
+        if (match_operator(p, "[")) {
+            advance(p);  /* consume '[' */
+            ASTNode *index = parse_expression(p);
+            if (!match_operator(p, "]")) {
+                set_error(p, "Expected ']' after array index", current(p));
+                free(name);
+                ast_free(index);
+                return NULL;
+            }
+            advance(p);  /* consume ']' */
+            
+            ASTNode *node = ast_create(AST_ARRAY_ACCESS, line, col);
+            node->data.array_access.array_name = name;
+            node->data.array_access.index = index;
             return node;
         }
 
@@ -451,7 +488,7 @@ static ASTNode *parse_var_decl(Parser *p)
         init_value = parse_expression(p);
     }
 
-    /* Type declaration: -> type */
+    /* Type declaration: -> type or -> type[] */
     if (!match_operator(p, "->")) {
         set_error(p, "Expected '->' for type declaration", current(p));
         free(var_name);
@@ -466,8 +503,28 @@ static ASTNode *parse_var_decl(Parser *p)
         ast_free(init_value);
         return NULL;
     }
-    DataType var_type = str_to_datatype(current(p)->lexeme);
+    
+    /* Build type string - check for [] suffix for arrays */
+    char type_str[64];
+    strncpy(type_str, current(p)->lexeme, sizeof(type_str) - 3);
+    type_str[sizeof(type_str) - 3] = '\0';
     advance(p);
+    
+    /* Check for [] to make it an array type */
+    if (match_operator(p, "[")) {
+        advance(p);  /* consume '[' */
+        if (match_operator(p, "]")) {
+            advance(p);  /* consume ']' */
+            strcat(type_str, "[]");
+        } else {
+            set_error(p, "Expected ']' after '[' in array type", current(p));
+            free(var_name);
+            ast_free(init_value);
+            return NULL;
+        }
+    }
+    
+    DataType var_type = str_to_datatype(type_str);
 
     ASTNode *node = ast_create(AST_VAR_DECL, line, col);
     node->data.var_decl.name = var_name;
@@ -476,13 +533,42 @@ static ASTNode *parse_var_decl(Parser *p)
     return node;
 }
 
-/* Parse assignment: x = 5 */
+/* Parse assignment: x = 5 or arr[i] = 5 */
 static ASTNode *parse_assignment(Parser *p)
 {
     Token *t = current(p);
     char *var_name = strdup(t->lexeme);
     size_t line = t->line, col = t->column;
     advance(p);  /* consume identifier */
+
+    /* Check for array indexing: arr[index] = value */
+    if (match_operator(p, "[")) {
+        advance(p);  /* consume '[' */
+        ASTNode *index = parse_expression(p);
+        if (!match_operator(p, "]")) {
+            set_error(p, "Expected ']' after array index", current(p));
+            free(var_name);
+            ast_free(index);
+            return NULL;
+        }
+        advance(p);  /* consume ']' */
+        
+        if (!match_operator(p, "=")) {
+            set_error(p, "Expected '=' after array index", current(p));
+            free(var_name);
+            ast_free(index);
+            return NULL;
+        }
+        advance(p);  /* consume '=' */
+        
+        ASTNode *value = parse_expression(p);
+        
+        ASTNode *node = ast_create(AST_ARRAY_ASSIGN, line, col);
+        node->data.array_assign.array_name = var_name;
+        node->data.array_assign.index = index;
+        node->data.array_assign.value = value;
+        return node;
+    }
 
     if (!match_operator(p, "=")) {
         free(var_name);
@@ -726,9 +812,10 @@ static ASTNode *parse_statement(Parser *p)
 
     /* Assignment or expression starting with identifier */
     if (t->type == TOK_IDENTIFIER) {
-        /* Look ahead for '=' */
+        /* Look ahead for '=' or '[' (for array assignment) */
         Token *next = peek(p, 1);
-        if (next && next->type == TOK_OPERATOR && strcmp(next->lexeme, "=") == 0) {
+        if (next && next->type == TOK_OPERATOR && 
+            (strcmp(next->lexeme, "=") == 0 || strcmp(next->lexeme, "[") == 0)) {
             return parse_assignment(p);
         }
         /* Otherwise it might be a function call or expression */
@@ -985,6 +1072,23 @@ void ast_print(ASTNode *node, int indent)
         case AST_ASSIGNMENT:
             printf("ASSIGN %s =\n", node->data.assignment.var_name);
             ast_print(node->data.assignment.value, indent + 1);
+            break;
+
+        case AST_ARRAY_ACCESS:
+            printf("ARRAY_ACCESS %s[]\n", node->data.array_access.array_name);
+            print_indent(indent + 1);
+            printf("INDEX:\n");
+            ast_print(node->data.array_access.index, indent + 2);
+            break;
+
+        case AST_ARRAY_ASSIGN:
+            printf("ARRAY_ASSIGN %s[] =\n", node->data.array_assign.array_name);
+            print_indent(indent + 1);
+            printf("INDEX:\n");
+            ast_print(node->data.array_assign.index, indent + 2);
+            print_indent(indent + 1);
+            printf("VALUE:\n");
+            ast_print(node->data.array_assign.value, indent + 2);
             break;
 
         case AST_RETURN:

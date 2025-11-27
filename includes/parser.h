@@ -18,6 +18,8 @@ typedef enum ASTNodeType {
     AST_FUNCTION_DEF,
     AST_VAR_DECL,
     AST_ASSIGNMENT,
+    AST_ARRAY_ACCESS,      /* Array element access: arr[index] */
+    AST_ARRAY_ASSIGN,      /* Array element assignment: arr[index] = value */
     AST_RETURN,
     AST_PRINT,
     AST_IF,
@@ -41,6 +43,10 @@ typedef enum DataType {
     TYPE_STRING,
     TYPE_VOID,
     TYPE_CHAR,
+    TYPE_INT_ARRAY,        /* int[] */
+    TYPE_FLOAT_ARRAY,      /* float[] */
+    TYPE_STRING_ARRAY,     /* string[] */
+    TYPE_CHAR_ARRAY,       /* char[] */
     TYPE_UNKNOWN
 } DataType;
 
@@ -97,6 +103,19 @@ struct ASTNode {
             char *var_name;
             ASTNode *value;
         } assignment;
+
+        /* AST_ARRAY_ACCESS: arr[index] */
+        struct {
+            char *array_name;
+            ASTNode *index;
+        } array_access;
+
+        /* AST_ARRAY_ASSIGN: arr[index] = value */
+        struct {
+            char *array_name;
+            ASTNode *index;
+            ASTNode *value;
+        } array_assign;
 
         /* AST_RETURN */
         struct {

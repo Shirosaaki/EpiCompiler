@@ -45,11 +45,97 @@ Value value_create_void(void)
     return v;
 }
 
+Value value_create_array(ValueType element_type)
+{
+    Value v;
+    v.type = VAL_ARRAY;
+    v.data.array_val = calloc(1, sizeof(ArrayValue));
+    v.data.array_val->elements = NULL;
+    v.data.array_val->size = 0;
+    v.data.array_val->capacity = 0;
+    v.data.array_val->element_type = element_type;
+    v.is_return = 0;
+    return v;
+}
+
+/* Set array element at index, auto-filling intermediate indices with last value */
+void array_set_element(ArrayValue *arr, size_t index, Value val)
+{
+    if (!arr) return;
+    
+    /* Expand array if needed */
+    if (index >= arr->capacity) {
+        size_t new_cap = index + 1;
+        if (new_cap < 16) new_cap = 16;
+        Value *new_elements = realloc(arr->elements, new_cap * sizeof(Value));
+        if (!new_elements) return;
+        
+        /* Initialize new elements to 0 */
+        for (size_t i = arr->capacity; i < new_cap; ++i) {
+            new_elements[i] = value_create_int(0);
+        }
+        arr->elements = new_elements;
+        arr->capacity = new_cap;
+    }
+    
+    /* Auto-fill from current size to index with the last value */
+    if (index > arr->size && arr->size > 0) {
+        Value last_val = arr->elements[arr->size - 1];
+        for (size_t i = arr->size; i < index; ++i) {
+            /* Copy the last value */
+            if (last_val.type == VAL_STRING) {
+                arr->elements[i] = value_create_string(last_val.data.string_val);
+            } else if (last_val.type == VAL_INT) {
+                arr->elements[i] = value_create_int(last_val.data.int_val);
+            } else if (last_val.type == VAL_FLOAT) {
+                arr->elements[i] = value_create_float(last_val.data.float_val);
+            } else {
+                arr->elements[i] = value_create_int(0);
+            }
+        }
+    }
+    
+    /* Set the element at index */
+    value_free(&arr->elements[index]);
+    if (val.type == VAL_STRING) {
+        arr->elements[index] = value_create_string(val.data.string_val);
+    } else {
+        arr->elements[index] = val;
+    }
+    
+    /* Update size */
+    if (index >= arr->size) {
+        arr->size = index + 1;
+    }
+}
+
+Value array_get_element(ArrayValue *arr, size_t index)
+{
+    if (!arr || index >= arr->capacity) {
+        return value_create_int(0);  /* Out of bounds returns 0 */
+    }
+    /* Return a copy */
+    Value elem = arr->elements[index];
+    if (elem.type == VAL_STRING) {
+        return value_create_string(elem.data.string_val);
+    }
+    return elem;
+}
+
 void value_free(Value *val)
 {
-    if (val && val->type == VAL_STRING && val->data.string_val) {
+    if (!val) return;
+    if (val->type == VAL_STRING && val->data.string_val) {
         free(val->data.string_val);
         val->data.string_val = NULL;
+    } else if (val->type == VAL_ARRAY && val->data.array_val) {
+        ArrayValue *arr = val->data.array_val;
+        for (size_t i = 0; i < arr->size; ++i) {
+            value_free(&arr->elements[i]);
+        }
+        free(arr->elements);
+        free(arr);
+        val->data.array_val = NULL;
     }
 }
 
@@ -270,26 +356,71 @@ static char *process_format_string(Interpreter *interp, const char *format)
             while (end < len && format[end] != '}') ++end;
 
             if (end < len) {
-                /* Extract variable name */
-                size_t name_len = end - start;
-                char *var_name = malloc(name_len + 1);
-                strncpy(var_name, format + start, name_len);
-                var_name[name_len] = '\0';
+                /* Extract expression inside braces */
+                size_t expr_len = end - start;
+                char *expr = malloc(expr_len + 1);
+                strncpy(expr, format + start, expr_len);
+                expr[expr_len] = '\0';
 
-                /* Get variable value */
-                Variable *var = scope_get_var(interp->current_scope, var_name);
-                char *val_str;
-                if (var) {
-                     /* Check if it's a char type - print as character */
-                    if (var->declared_type == TYPE_CHAR && var->value.type == VAL_INT) {
-                        val_str = malloc(2);
-                        val_str[0] = (char)var->value.data.int_val;
-                        val_str[1] = '\0';
+                char *val_str = NULL;
+                
+                /* Check if it's an array access: name[index] */
+                char *bracket = strchr(expr, '[');
+                if (bracket) {
+                    /* Parse array access */
+                    size_t name_len = bracket - expr;
+                    char *arr_name = malloc(name_len + 1);
+                    strncpy(arr_name, expr, name_len);
+                    arr_name[name_len] = '\0';
+                    
+                    /* Parse index expression */
+                    char *idx_start = bracket + 1;
+                    char *idx_end = strchr(idx_start, ']');
+                    if (idx_end) {
+                        size_t idx_len = idx_end - idx_start;
+                        char *idx_expr = malloc(idx_len + 1);
+                        strncpy(idx_expr, idx_start, idx_len);
+                        idx_expr[idx_len] = '\0';
+                        
+                        /* Get the array variable */
+                        Variable *arr_var = scope_get_var(interp->current_scope, arr_name);
+                        if (arr_var && arr_var->value.type == VAL_ARRAY) {
+                            /* Evaluate index - could be a variable or a number */
+                            long index = 0;
+                            Variable *idx_var = scope_get_var(interp->current_scope, idx_expr);
+                            if (idx_var && idx_var->value.type == VAL_INT) {
+                                index = idx_var->value.data.int_val;
+                            } else {
+                                /* Try parsing as number */
+                                index = atol(idx_expr);
+                            }
+                            
+                            Value elem = array_get_element(arr_var->value.data.array_val, (size_t)index);
+                            val_str = value_to_string(&elem);
+                            value_free(&elem);
+                        } else {
+                            val_str = strdup("<undefined>");
+                        }
+                        free(idx_expr);
                     } else {
-                        val_str = value_to_string(&var->value);
+                        val_str = strdup("<undefined>");
                     }
+                    free(arr_name);
                 } else {
-                    val_str = strdup("<undefined>");
+                    /* Simple variable */
+                    Variable *var = scope_get_var(interp->current_scope, expr);
+                    if (var) {
+                        /* Check if it's a char type - print as character */
+                        if (var->declared_type == TYPE_CHAR && var->value.type == VAL_INT) {
+                            val_str = malloc(2);
+                            val_str[0] = (char)var->value.data.int_val;
+                            val_str[1] = '\0';
+                        } else {
+                            val_str = value_to_string(&var->value);
+                        }
+                    } else {
+                        val_str = strdup("<undefined>");
+                    }
                 }
 
                 /* Append to result */
@@ -301,7 +432,7 @@ static char *process_format_string(Interpreter *interp, const char *format)
                 strcpy(result + result_len, val_str);
                 result_len += val_len;
 
-                free(var_name);
+                free(expr);
                 free(val_str);
                 i = end;  /* Skip past '}' */
                 continue;
@@ -349,6 +480,27 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
                 v.data.string_val = strdup(var->value.data.string_val);
             }
             return v;
+        }
+
+        case AST_ARRAY_ACCESS: {
+            Variable *var = scope_get_var(interp->current_scope, node->data.array_access.array_name);
+            if (!var) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined array '%s'", node->data.array_access.array_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            if (var->value.type != VAL_ARRAY) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' is not an array", node->data.array_access.array_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            
+            Value idx_val = eval_expression(interp, node->data.array_access.index);
+            size_t index = (size_t)idx_val.data.int_val;
+            
+            return array_get_element(var->value.data.array_val, index);
         }
 
         case AST_BINARY_OP: {
@@ -499,6 +651,18 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                     case TYPE_STRING:
                         init_val = value_create_string("");
                         break;
+                    case TYPE_INT_ARRAY:
+                        init_val = value_create_array(VAL_INT);
+                        break;
+                    case TYPE_FLOAT_ARRAY:
+                        init_val = value_create_array(VAL_FLOAT);
+                        break;
+                    case TYPE_STRING_ARRAY:
+                        init_val = value_create_array(VAL_STRING);
+                        break;
+                    case TYPE_CHAR_ARRAY:
+                        init_val = value_create_array(VAL_INT);  /* char stored as int */
+                        break;
                     default:
                         init_val = value_create_void();
                         break;
@@ -519,6 +683,30 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 set_runtime_error(interp, msg, node->line);
                 value_free(&val);
             }
+            return value_create_void();
+        }
+
+        case AST_ARRAY_ASSIGN: {
+            Variable *var = scope_get_var(interp->current_scope, node->data.array_assign.array_name);
+            if (!var) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined array '%s'", node->data.array_assign.array_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            if (var->value.type != VAL_ARRAY) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' is not an array", node->data.array_assign.array_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            
+            Value idx_val = eval_expression(interp, node->data.array_assign.index);
+            Value val = eval_expression(interp, node->data.array_assign.value);
+            
+            size_t index = (size_t)idx_val.data.int_val;
+            array_set_element(var->value.data.array_val, index, val);
+            
             return value_create_void();
         }
 

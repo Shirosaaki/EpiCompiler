@@ -18,8 +18,17 @@ typedef enum ValueType {
     VAL_FLOAT,
     VAL_STRING,
     VAL_VOID,
+    VAL_ARRAY,  /* Array type */
     VAL_RETURN  /* Special type for return statements */
 } ValueType;
+
+/* Array structure for runtime */
+typedef struct ArrayValue {
+    struct Value *elements;
+    size_t size;
+    size_t capacity;
+    ValueType element_type;  /* Type of elements in array */
+} ArrayValue;
 
 typedef struct Value {
     ValueType type;
@@ -27,6 +36,7 @@ typedef struct Value {
         long int_val;
         double float_val;
         char *string_val;
+        ArrayValue *array_val;
     } data;
     int is_return;  /* Flag for return value propagation */
 } Value;
@@ -79,9 +89,14 @@ Value value_create_int(long val);
 Value value_create_float(double val);
 Value value_create_string(const char *val);
 Value value_create_void(void);
+Value value_create_array(ValueType element_type);
 void value_free(Value *val);
 void value_print(Value *val);
 char *value_to_string(Value *val);
+
+/* Array utilities */
+void array_set_element(ArrayValue *arr, size_t index, Value val);
+Value array_get_element(ArrayValue *arr, size_t index);
 
 /* Scope management */
 VarScope *scope_create(VarScope *parent);
