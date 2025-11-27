@@ -18,6 +18,9 @@
     #include "lexer.h"
     #include "token.h"
     #include "lex_error.h"
+    #include "parser.h"
+    #include "interpreter.h"
+    #include "code_generator.h"
 
 
 #endif /* !EPICOMPILER_H_ */

@@ -1,6 +1,6 @@
 Deschodt Eric() -> int
-    eric nom = "Mathéo"
-    eric age = 21
+    eric nom = "Mathéo" -> string
+    eric age = 21 -> int
 
     peric("Bonjour {nom}, tu as {age} ans.")
     deschodt 0

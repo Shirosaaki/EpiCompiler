@@ -358,6 +358,35 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
             continue;
         }
 
+        /* Character literal: 'x' */
+        if (c == '\'') {
+            size_t startcol = col;
+            ++i; ++col;
+            char char_val = src[i];
+            if (src[i] == '\\' && src[i+1]) {
+                ++i; ++col;
+                char esc = src[i];
+                if (esc == 'n') char_val = '\n';
+                else if (esc == 't') char_val = '\t';
+                else if (esc == '\\') char_val = '\\';
+                else if (esc == '\'') char_val = '\'';
+                else char_val = esc;
+            }
+            ++i; ++col;
+            if (src[i] != '\'') {
+                free(src);
+                if (out_err) *out_err = lex_error_create("Unterminated character literal", line, col);
+                return -1;
+            }
+            ++i; ++col;
+            /* Store as a number (ASCII value) */
+            char lex[16];
+            snprintf(lex, sizeof(lex), "%d", (unsigned char)char_val);
+            Token t = token_create(TOK_NUMBER, strdup(lex), line, startcol);
+            token_list_push(out_tokens, t);
+            continue;
+        }
+
         if (c == '"') {
             size_t startcol = col;
             ++i; ++col; size_t start = i;

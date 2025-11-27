@@ -1,0 +1,696 @@
+/**==============================================
+ *                 interpreter.c
+ *  Interpreter implementation - executes AST
+ *  Author: shirosaaki
+ *  Date: 2025-11-27
+ *=============================================**/
+
+#include "../includes/interpreter.h"
+#include <ctype.h>
+
+/* ========== Value Functions ========== */
+
+Value value_create_int(long val)
+{
+    Value v;
+    v.type = VAL_INT;
+    v.data.int_val = val;
+    v.is_return = 0;
+    return v;
+}
+
+Value value_create_float(double val)
+{
+    Value v;
+    v.type = VAL_FLOAT;
+    v.data.float_val = val;
+    v.is_return = 0;
+    return v;
+}
+
+Value value_create_string(const char *val)
+{
+    Value v;
+    v.type = VAL_STRING;
+    v.data.string_val = val ? strdup(val) : NULL;
+    v.is_return = 0;
+    return v;
+}
+
+Value value_create_void(void)
+{
+    Value v;
+    v.type = VAL_VOID;
+    v.is_return = 0;
+    return v;
+}
+
+void value_free(Value *val)
+{
+    if (val && val->type == VAL_STRING && val->data.string_val) {
+        free(val->data.string_val);
+        val->data.string_val = NULL;
+    }
+}
+
+char *value_to_string(Value *val)
+{
+    char buf[256];
+    switch (val->type) {
+        case VAL_INT:
+            snprintf(buf, sizeof(buf), "%ld", val->data.int_val);
+            break;
+        case VAL_FLOAT:
+            snprintf(buf, sizeof(buf), "%g", val->data.float_val);
+            break;
+        case VAL_STRING:
+            return val->data.string_val ? strdup(val->data.string_val) : strdup("");
+        case VAL_VOID:
+            return strdup("void");
+        default:
+            return strdup("<unknown>");
+    }
+    return strdup(buf);
+}
+
+void value_print(Value *val)
+{
+    switch (val->type) {
+        case VAL_INT:
+            printf("%ld", val->data.int_val);
+            break;
+        case VAL_FLOAT:
+            printf("%g", val->data.float_val);
+            break;
+        case VAL_STRING:
+            printf("%s", val->data.string_val ? val->data.string_val : "");
+            break;
+        case VAL_VOID:
+            printf("void");
+            break;
+        default:
+            printf("<unknown>");
+            break;
+    }
+}
+
+/* ========== Scope Functions ========== */
+
+VarScope *scope_create(VarScope *parent)
+{
+    VarScope *scope = calloc(1, sizeof(VarScope));
+    scope->parent = parent;
+    return scope;
+}
+
+void scope_free(VarScope *scope)
+{
+    if (!scope) return;
+    for (size_t i = 0; i < scope->count; ++i) {
+        free(scope->vars[i].name);
+        value_free(&scope->vars[i].value);
+    }
+    free(scope->vars);
+    free(scope);
+}
+
+int scope_set_var(VarScope *scope, const char *name, Value val, DataType type)
+{
+    /* Check if variable already exists in current scope */
+    for (size_t i = 0; i < scope->count; ++i) {
+        if (strcmp(scope->vars[i].name, name) == 0) {
+            value_free(&scope->vars[i].value);
+            scope->vars[i].value = val;
+            return 0;
+        }
+    }
+
+    /* Add new variable */
+    if (scope->count >= scope->capacity) {
+        size_t new_cap = scope->capacity == 0 ? 8 : scope->capacity * 2;
+        Variable *new_vars = realloc(scope->vars, new_cap * sizeof(Variable));
+        if (!new_vars) return -1;
+        scope->vars = new_vars;
+        scope->capacity = new_cap;
+    }
+
+    scope->vars[scope->count].name = strdup(name);
+    scope->vars[scope->count].value = val;
+    scope->vars[scope->count].declared_type = type;
+    scope->count++;
+    return 0;
+}
+
+Variable *scope_get_var(VarScope *scope, const char *name)
+{
+    VarScope *s = scope;
+    while (s) {
+        for (size_t i = 0; i < s->count; ++i) {
+            if (strcmp(s->vars[i].name, name) == 0) {
+                return &s->vars[i];
+            }
+        }
+        s = s->parent;
+    }
+    return NULL;
+}
+
+/* Update variable in any scope (for assignments) */
+static int scope_update_var(VarScope *scope, const char *name, Value val)
+{
+    VarScope *s = scope;
+    while (s) {
+        for (size_t i = 0; i < s->count; ++i) {
+            if (strcmp(s->vars[i].name, name) == 0) {
+                value_free(&s->vars[i].value);
+                s->vars[i].value = val;
+                return 0;
+            }
+        }
+        s = s->parent;
+    }
+    return -1;  /* Variable not found */
+}
+
+/* ========== Function Registry ========== */
+
+static void func_registry_init(FuncRegistry *reg)
+{
+    reg->funcs = NULL;
+    reg->count = 0;
+    reg->capacity = 0;
+}
+
+static void func_registry_free(FuncRegistry *reg)
+{
+    for (size_t i = 0; i < reg->count; ++i) {
+        free(reg->funcs[i].name);
+    }
+    free(reg->funcs);
+}
+
+static int func_registry_add(FuncRegistry *reg, const char *name, ASTNode *node)
+{
+    if (reg->count >= reg->capacity) {
+        size_t new_cap = reg->capacity == 0 ? 8 : reg->capacity * 2;
+        FuncDef *new_funcs = realloc(reg->funcs, new_cap * sizeof(FuncDef));
+        if (!new_funcs) return -1;
+        reg->funcs = new_funcs;
+        reg->capacity = new_cap;
+    }
+    reg->funcs[reg->count].name = strdup(name);
+    reg->funcs[reg->count].ast_node = node;
+    reg->count++;
+    return 0;
+}
+
+static FuncDef *func_registry_get(FuncRegistry *reg, const char *name)
+{
+    for (size_t i = 0; i < reg->count; ++i) {
+        if (strcmp(reg->funcs[i].name, name) == 0) {
+            return &reg->funcs[i];
+        }
+    }
+    return NULL;
+}
+
+/* ========== Interpreter ========== */
+
+void interpreter_init(Interpreter *interp)
+{
+    func_registry_init(&interp->functions);
+    interp->current_scope = NULL;
+    interp->error_msg = NULL;
+    interp->error_line = 0;
+    interp->exit_code = 0;
+    interp->has_returned = 0;
+}
+
+void interpreter_free(Interpreter *interp)
+{
+    func_registry_free(&interp->functions);
+    free(interp->error_msg);
+
+    /* Free all scopes */
+    while (interp->current_scope) {
+        VarScope *parent = interp->current_scope->parent;
+        scope_free(interp->current_scope);
+        interp->current_scope = parent;
+    }
+}
+
+static void set_runtime_error(Interpreter *interp, const char *msg, size_t line)
+{
+    if (interp->error_msg) return;
+    interp->error_msg = strdup(msg);
+    interp->error_line = line;
+}
+
+/* Forward declarations */
+static Value eval_expression(Interpreter *interp, ASTNode *node);
+static Value exec_statement(Interpreter *interp, ASTNode *node);
+static Value exec_block(Interpreter *interp, ASTNodeList *stmts);
+
+/* ========== Expression Evaluation ========== */
+
+/* Process format string like "x = {x}, y = {y}" */
+static char *process_format_string(Interpreter *interp, const char *format)
+{
+    size_t len = strlen(format);
+    size_t result_cap = len * 2 + 1;
+    char *result = malloc(result_cap);
+    size_t result_len = 0;
+    result[0] = '\0';
+
+    for (size_t i = 0; i < len; ++i) {
+        if (format[i] == '{') {
+            /* Find closing brace */
+            size_t start = i + 1;
+            size_t end = start;
+            while (end < len && format[end] != '}') ++end;
+
+            if (end < len) {
+                /* Extract variable name */
+                size_t name_len = end - start;
+                char *var_name = malloc(name_len + 1);
+                strncpy(var_name, format + start, name_len);
+                var_name[name_len] = '\0';
+
+                /* Get variable value */
+                Variable *var = scope_get_var(interp->current_scope, var_name);
+                char *val_str;
+                if (var) {
+                     /* Check if it's a char type - print as character */
+                    if (var->declared_type == TYPE_CHAR && var->value.type == VAL_INT) {
+                        val_str = malloc(2);
+                        val_str[0] = (char)var->value.data.int_val;
+                        val_str[1] = '\0';
+                    } else {
+                        val_str = value_to_string(&var->value);
+                    }
+                } else {
+                    val_str = strdup("<undefined>");
+                }
+
+                /* Append to result */
+                size_t val_len = strlen(val_str);
+                if (result_len + val_len >= result_cap) {
+                    result_cap = result_cap * 2 + val_len;
+                    result = realloc(result, result_cap);
+                }
+                strcpy(result + result_len, val_str);
+                result_len += val_len;
+
+                free(var_name);
+                free(val_str);
+                i = end;  /* Skip past '}' */
+                continue;
+            }
+        }
+
+        /* Regular character */
+        if (result_len + 1 >= result_cap) {
+            result_cap *= 2;
+            result = realloc(result, result_cap);
+        }
+        result[result_len++] = format[i];
+        result[result_len] = '\0';
+    }
+
+    return result;
+}
+
+static Value eval_expression(Interpreter *interp, ASTNode *node)
+{
+    if (!node) return value_create_void();
+
+    switch (node->type) {
+        case AST_NUMBER:
+            if (node->data.number.is_float) {
+                return value_create_float(node->data.number.value);
+            } else {
+                return value_create_int((long)node->data.number.value);
+            }
+
+        case AST_STRING:
+            return value_create_string(node->data.string.value);
+
+        case AST_IDENTIFIER: {
+            Variable *var = scope_get_var(interp->current_scope, node->data.identifier.name);
+            if (!var) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined variable '%s'", node->data.identifier.name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            /* Copy the value */
+            Value v = var->value;
+            if (v.type == VAL_STRING) {
+                v.data.string_val = strdup(var->value.data.string_val);
+            }
+            return v;
+        }
+
+        case AST_BINARY_OP: {
+            Value left = eval_expression(interp, node->data.binary_op.left);
+            Value right = eval_expression(interp, node->data.binary_op.right);
+            const char *op = node->data.binary_op.op;
+
+            /* String concatenation */
+            if (strcmp(op, "+") == 0 && (left.type == VAL_STRING || right.type == VAL_STRING)) {
+                char *left_str = value_to_string(&left);
+                char *right_str = value_to_string(&right);
+                size_t len = strlen(left_str) + strlen(right_str) + 1;
+                char *result = malloc(len);
+                strcpy(result, left_str);
+                strcat(result, right_str);
+                free(left_str);
+                free(right_str);
+                value_free(&left);
+                value_free(&right);
+                Value v = value_create_string(result);
+                free(result);
+                return v;
+            }
+
+            /* Numeric operations */
+            int is_float = (left.type == VAL_FLOAT || right.type == VAL_FLOAT);
+            double l = (left.type == VAL_FLOAT) ? left.data.float_val : (double)left.data.int_val;
+            double r = (right.type == VAL_FLOAT) ? right.data.float_val : (double)right.data.int_val;
+
+            value_free(&left);
+            value_free(&right);
+
+            if (strcmp(op, "+") == 0) {
+                return is_float ? value_create_float(l + r) : value_create_int((long)(l + r));
+            } else if (strcmp(op, "-") == 0) {
+                return is_float ? value_create_float(l - r) : value_create_int((long)(l - r));
+            } else if (strcmp(op, "*") == 0) {
+                return is_float ? value_create_float(l * r) : value_create_int((long)(l * r));
+            } else if (strcmp(op, "/") == 0) {
+                if (r == 0) {
+                    set_runtime_error(interp, "Division by zero", node->line);
+                    return value_create_int(0);
+                }
+                return is_float ? value_create_float(l / r) : value_create_int((long)(l / r));
+            } else if (strcmp(op, "%") == 0) {
+                if ((long)r == 0) {
+                    set_runtime_error(interp, "Modulo by zero", node->line);
+                    return value_create_int(0);
+                }
+                return value_create_int((long)l % (long)r);
+            } else if (strcmp(op, "<") == 0) {
+                return value_create_int(l < r ? 1 : 0);
+            } else if (strcmp(op, ">") == 0) {
+                return value_create_int(l > r ? 1 : 0);
+            } else if (strcmp(op, "<=") == 0) {
+                return value_create_int(l <= r ? 1 : 0);
+            } else if (strcmp(op, ">=") == 0) {
+                return value_create_int(l >= r ? 1 : 0);
+            } else if (strcmp(op, "==") == 0) {
+                return value_create_int(l == r ? 1 : 0);
+            } else if (strcmp(op, "!=") == 0) {
+                return value_create_int(l != r ? 1 : 0);
+            }
+
+            return value_create_void();
+        }
+
+        case AST_UNARY_OP: {
+            Value operand = eval_expression(interp, node->data.unary_op.operand);
+            const char *op = node->data.unary_op.op;
+
+            if (strcmp(op, "-") == 0) {
+                if (operand.type == VAL_FLOAT) {
+                    return value_create_float(-operand.data.float_val);
+                } else {
+                    return value_create_int(-operand.data.int_val);
+                }
+            } else if (strcmp(op, "+") == 0) {
+                return operand;
+            }
+            return operand;
+        }
+
+        case AST_FUNC_CALL: {
+            const char *func_name = node->data.func_call.name;
+            FuncDef *func = func_registry_get(&interp->functions, func_name);
+
+            if (!func) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined function '%s'", func_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+
+            ASTNode *func_node = func->ast_node;
+
+            /* Create new scope for function */
+            VarScope *old_scope = interp->current_scope;
+            interp->current_scope = scope_create(NULL);  /* Functions have their own scope */
+
+            /* Bind parameters */
+            size_t param_count = func_node->data.func_def.params.count;
+            size_t arg_count = node->data.func_call.args.count;
+
+            for (size_t i = 0; i < param_count && i < arg_count; ++i) {
+                FuncParam *param = &func_node->data.func_def.params.items[i];
+                Value arg_val = eval_expression(interp, node->data.func_call.args.items[i]);
+                scope_set_var(interp->current_scope, param->name, arg_val, param->type);
+            }
+
+            /* Execute function body */
+            interp->has_returned = 0;
+            Value result = exec_block(interp, &func_node->data.func_def.body);
+
+            /* Restore scope */
+            scope_free(interp->current_scope);
+            interp->current_scope = old_scope;
+            interp->has_returned = 0;
+
+            return result;
+        }
+
+        default:
+            return value_create_void();
+    }
+}
+
+/* ========== Statement Execution ========== */
+
+static Value exec_statement(Interpreter *interp, ASTNode *node)
+{
+    if (!node || interp->has_returned) return value_create_void();
+
+    switch (node->type) {
+        case AST_VAR_DECL: {
+            Value init_val;
+            if (node->data.var_decl.init_value) {
+                init_val = eval_expression(interp, node->data.var_decl.init_value);
+            } else {
+                /* Default initialization based on type */
+                switch (node->data.var_decl.var_type) {
+                    case TYPE_INT:
+                        init_val = value_create_int(0);
+                        break;
+                    case TYPE_FLOAT:
+                        init_val = value_create_float(0.0);
+                        break;
+                    case TYPE_STRING:
+                        init_val = value_create_string("");
+                        break;
+                    default:
+                        init_val = value_create_void();
+                        break;
+                }
+            }
+            scope_set_var(interp->current_scope, node->data.var_decl.name,
+                         init_val, node->data.var_decl.var_type);
+            return value_create_void();
+        }
+
+        case AST_ASSIGNMENT: {
+            Value val = eval_expression(interp, node->data.assignment.value);
+
+            /* Try to update existing variable */
+            if (scope_update_var(interp->current_scope, node->data.assignment.var_name, val) != 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined variable '%s'", node->data.assignment.var_name);
+                set_runtime_error(interp, msg, node->line);
+                value_free(&val);
+            }
+            return value_create_void();
+        }
+
+        case AST_RETURN: {
+            Value val = eval_expression(interp, node->data.return_stmt.value);
+            interp->has_returned = 1;
+            val.is_return = 1;
+            return val;
+        }
+
+        case AST_PRINT: {
+            Value val = eval_expression(interp, node->data.print_stmt.value);
+
+            if (val.type == VAL_STRING && val.data.string_val) {
+                /* Process format string */
+                char *formatted = process_format_string(interp, val.data.string_val);
+                printf("%s\n", formatted);
+                free(formatted);
+            } else {
+                value_print(&val);
+                printf("\n");
+            }
+            value_free(&val);
+            return value_create_void();
+        }
+
+        case AST_IF: {
+            Value cond = eval_expression(interp, node->data.conditional.condition);
+            int is_true = 0;
+
+            if (cond.type == VAL_INT) {
+                is_true = (cond.data.int_val != 0);
+            } else if (cond.type == VAL_FLOAT) {
+                is_true = (cond.data.float_val != 0.0);
+            }
+            value_free(&cond);
+
+            if (is_true) {
+                return exec_block(interp, &node->data.conditional.body);
+            } else if (node->data.conditional.else_body.count > 0) {
+                return exec_block(interp, &node->data.conditional.else_body);
+            }
+            return value_create_void();
+        }
+
+        case AST_WHILE: {
+            while (!interp->has_returned) {
+                Value cond = eval_expression(interp, node->data.conditional.condition);
+                int is_true = 0;
+
+                if (cond.type == VAL_INT) {
+                    is_true = (cond.data.int_val != 0);
+                } else if (cond.type == VAL_FLOAT) {
+                    is_true = (cond.data.float_val != 0.0);
+                }
+                value_free(&cond);
+
+                if (!is_true) break;
+
+                Value result = exec_block(interp, &node->data.conditional.body);
+                if (interp->has_returned) {
+                    return result;
+                }
+                value_free(&result);
+            }
+            return value_create_void();
+        }
+
+        case AST_FOR: {
+            Value start_val = eval_expression(interp, node->data.for_loop.start);
+            Value end_val = eval_expression(interp, node->data.for_loop.end);
+            Value step_val;
+
+            if (node->data.for_loop.step) {
+                step_val = eval_expression(interp, node->data.for_loop.step);
+            } else {
+                step_val = value_create_int(1);
+            }
+
+            long start = (start_val.type == VAL_INT) ? start_val.data.int_val : (long)start_val.data.float_val;
+            long end = (end_val.type == VAL_INT) ? end_val.data.int_val : (long)end_val.data.float_val;
+            long step = (step_val.type == VAL_INT) ? step_val.data.int_val : (long)step_val.data.float_val;
+
+            value_free(&start_val);
+            value_free(&end_val);
+            value_free(&step_val);
+
+            /* Create loop variable */
+            scope_set_var(interp->current_scope, node->data.for_loop.var_name,
+                         value_create_int(start), TYPE_INT);
+
+            for (long i = start; (step > 0 ? i < end : i > end) && !interp->has_returned; i += step) {
+                /* Update loop variable */
+                scope_update_var(interp->current_scope, node->data.for_loop.var_name,
+                                value_create_int(i));
+
+                Value result = exec_block(interp, &node->data.for_loop.body);
+                if (interp->has_returned) {
+                    return result;
+                }
+                value_free(&result);
+            }
+            return value_create_void();
+        }
+
+        default:
+            /* Try to evaluate as expression */
+            return eval_expression(interp, node);
+    }
+}
+
+static Value exec_block(Interpreter *interp, ASTNodeList *stmts)
+{
+    Value last_val = value_create_void();
+
+    for (size_t i = 0; i < stmts->count && !interp->has_returned; ++i) {
+        value_free(&last_val);
+        last_val = exec_statement(interp, stmts->items[i]);
+
+        if (interp->has_returned || last_val.is_return) {
+            return last_val;
+        }
+    }
+
+    return last_val;
+}
+
+/* ========== Main Interpreter Entry Point ========== */
+
+int interpreter_run(Interpreter *interp, ASTNode *program)
+{
+    if (!program || program->type != AST_PROGRAM) {
+        set_runtime_error(interp, "Invalid program AST", 0);
+        return 1;
+    }
+
+    /* Register all functions */
+    for (size_t i = 0; i < program->data.program.functions.count; ++i) {
+        ASTNode *func = program->data.program.functions.items[i];
+        if (func->type == AST_FUNCTION_DEF) {
+            func_registry_add(&interp->functions, func->data.func_def.name, func);
+        }
+    }
+
+    /* Find and call the main function (Eric) */
+    FuncDef *main_func = func_registry_get(&interp->functions, "Eric");
+    if (!main_func) {
+        set_runtime_error(interp, "No 'Eric' (main) function found", 0);
+        return 1;
+    }
+
+    /* Create global scope */
+    interp->current_scope = scope_create(NULL);
+
+    /* Execute main function */
+    ASTNode *main_node = main_func->ast_node;
+    Value result = exec_block(interp, &main_node->data.func_def.body);
+
+    /* Get exit code from return value */
+    if (result.type == VAL_INT) {
+        interp->exit_code = (int)result.data.int_val;
+    } else {
+        interp->exit_code = 0;
+    }
+
+    value_free(&result);
+
+    if (interp->error_msg) {
+        fprintf(stderr, "Runtime error at line %zu: %s\n",
+                interp->error_line, interp->error_msg);
+        return 1;
+    }
+
+    return interp->exit_code;
+}
