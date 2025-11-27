@@ -760,9 +760,14 @@ static void parse_block(Parser *p, ASTNodeList *body)
             ast_list_push(body, stmt);
         }
 
-        /* Skip to next line */
-        while (current(p) && current(p)->type != TOK_NEWLINE &&
-               current(p)->type != TOK_DEDENT && current(p)->type != TOK_EOF) {
+        /* Skip to next statement - but only skip if we have trailing garbage */
+        /* Don't skip if we're already at a newline, dedent, or statement-starting token */
+        while (current(p) && 
+               current(p)->type != TOK_NEWLINE &&
+               current(p)->type != TOK_DEDENT && 
+               current(p)->type != TOK_EOF &&
+               current(p)->type != TOK_KEYWORD &&
+               current(p)->type != TOK_IDENTIFIER) {
             advance(p);
         }
         if (current(p) && current(p)->type == TOK_NEWLINE) {
@@ -871,9 +876,14 @@ static ASTNode *parse_function(Parser *p)
             ast_list_push(&node->data.func_def.body, stmt);
         }
 
-        /* Skip to next line */
-        while (current(p) && current(p)->type != TOK_NEWLINE &&
-               current(p)->type != TOK_DEDENT && current(p)->type != TOK_EOF) {
+        /* Skip to next statement - but only skip if we have trailing garbage */
+        /* Don't skip if we're already at a newline, dedent, or statement-starting token */
+        while (current(p) && 
+               current(p)->type != TOK_NEWLINE &&
+               current(p)->type != TOK_DEDENT && 
+               current(p)->type != TOK_EOF &&
+               current(p)->type != TOK_KEYWORD &&
+               current(p)->type != TOK_IDENTIFIER) {
             advance(p);
         }
         if (current(p) && current(p)->type == TOK_NEWLINE) {
