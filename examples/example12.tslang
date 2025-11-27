@@ -5,8 +5,9 @@ Deschodt factoriel(n -> int) -> int
         deschodt n * factoriel(n - 1)
 
 Deschodt Eric() -> int
-    eric val = 5
-    peric("factoriel({val}) = {factoriel(val)}")
+    eric val = 5 -> int
+    eric fact = factoriel(val) -> int
+    peric("factoriel({val}) = {fact}")
     deschodt 0
 
 desnote print factoriel(5) = 120

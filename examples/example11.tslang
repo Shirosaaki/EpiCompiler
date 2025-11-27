@@ -2,7 +2,7 @@ Deschodt incremente(ptr -> int*) -> void
     *ptr = *ptr + 1
 
 Deschodt Eric() -> int
-    eric n = 10
+    eric n = 10 -> int
     incremente(&n)
     peric("n = {n}")
     deschodt 0

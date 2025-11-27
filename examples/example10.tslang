@@ -1,4 +1,4 @@
-desconst PI = 3.1415
+desconst PI = 3.1415 -> float
 
 desenum Jour:
     Lundi
@@ -6,7 +6,7 @@ desenum Jour:
     Mercredi
 
 Deschodt Eric() -> int
-    eric j = Mardi
+    eric j = Mardi -> Jour
     peric("PI = {PI}, Jour = {j}")
     deschodt 0
 
