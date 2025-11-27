@@ -462,7 +462,7 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
             token_list_push(out_tokens, t);
             ++i; ++col; continue;
         }
-        const char *ops = "+-*/%=<>:,.";
+        const char *ops = "+-*/%=<>:,.&";
         if (strchr(ops, src[i])) {
             char s[2] = { src[i], '\0' };
             char *lex = strdup(s);
@@ -527,8 +527,8 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                 if (next->type == TOK_IDENTIFIER || next->type == TOK_NUMBER || next->type == TOK_STRING) next_is_start = 1;
                 else if (next->type == TOK_OPERATOR && next->lexeme) {
                     if (strcmp(next->lexeme, "(") == 0 || strcmp(next->lexeme, "[") == 0 || strcmp(next->lexeme, "{") == 0) next_is_start = 1;
-                    else if (strcmp(next->lexeme, "+") == 0 || strcmp(next->lexeme, "-") == 0) {
-                        /* allow unary +/- if followed by a number or identifier */
+                    else if (strcmp(next->lexeme, "+") == 0 || strcmp(next->lexeme, "-") == 0 || strcmp(next->lexeme, "*") == 0 || strcmp(next->lexeme, "&") == 0) {
+                        /* allow unary +/- or unary * (dereference) or unary & (address-of) if followed by a number or identifier */
                         size_t k = nj + 1;
                         while (k < n && (out_tokens->items[k].type == TOK_NEWLINE || out_tokens->items[k].type == TOK_INDENT || out_tokens->items[k].type == TOK_DEDENT)) ++k;
                         if (k < n) {
@@ -539,6 +539,34 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                 }
             }
             if (is_binary) {
+                /* Special case: '*' can be a type suffix (int*, float*) or unary dereference (*ptr) */
+                if (strcmp(op, "*") == 0) {
+                    int is_type_suffix = 0;
+                    int is_unary_deref = 0;
+                    /* Check if it's a type suffix: int* or float* or string* or char* */
+                    if (prev && prev->type == TOK_IDENTIFIER && prev->lexeme) {
+                        if (strcmp(prev->lexeme, "int") == 0 || strcmp(prev->lexeme, "float") == 0 ||
+                            strcmp(prev->lexeme, "string") == 0 || strcmp(prev->lexeme, "char") == 0) {
+                            /* It's a pointer type like int*, next can be ) or , or identifier */
+                            is_type_suffix = 1;
+                        }
+                    }
+                    /* Check if it's unary dereference: *ptr (no value before) */
+                    if (!prev_is_value) {
+                        is_unary_deref = 1;
+                    }
+                    if (is_type_suffix || is_unary_deref) {
+                        /* Skip binary operator validation for pointer contexts */
+                        continue;
+                    }
+                }
+                /* Special case: '&' can be address-of operator (&n) */
+                if (strcmp(op, "&") == 0) {
+                    /* If there's no value before, it's address-of */
+                    if (!prev_is_value) {
+                        continue; /* Skip validation, it's unary &var */
+                    }
+                }
                 if (!prev_is_value) {
                     char msg[128];
                     snprintf(msg, sizeof(msg), "Operator '%s' missing left operand", op);
@@ -555,12 +583,21 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                 }
             }
             if (is_assign) {
-                /* Allow assignment after identifier OR after ']' (for array access) */
+                /* Allow assignment after identifier OR after ']' (for array access) OR after identifier preceded by '*' (pointer dereference) */
                 int valid_lhs = 0;
                 if (prev && prev->type == TOK_IDENTIFIER) {
                     valid_lhs = 1;
+                    /* Check if this identifier is preceded by '*' (dereference assignment: *ptr = value) */
                 } else if (prev && prev->type == TOK_OPERATOR && strcmp(prev->lexeme, "]") == 0) {
                     valid_lhs = 1;  /* Array element assignment: arr[i] = value */
+                }
+                /* Also check for *ptr = ... pattern: prev is identifier, and before that is '*' */
+                if (!valid_lhs && prev && prev->type == TOK_IDENTIFIER) {
+                    long pk = pj - 1;
+                    while (pk >= 0 && (out_tokens->items[pk].type == TOK_NEWLINE || out_tokens->items[pk].type == TOK_INDENT || out_tokens->items[pk].type == TOK_DEDENT)) --pk;
+                    if (pk >= 0 && out_tokens->items[pk].type == TOK_OPERATOR && strcmp(out_tokens->items[pk].lexeme, "*") == 0) {
+                        valid_lhs = 1; /* Pointer dereference assignment: *ptr = value */
+                    }
                 }
                 if (!valid_lhs) {
                     char msg[128];

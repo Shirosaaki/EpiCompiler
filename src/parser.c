@@ -83,6 +83,10 @@ DataType str_to_datatype(const char *str)
     if (strcmp(str, "float[]") == 0) return TYPE_FLOAT_ARRAY;
     if (strcmp(str, "string[]") == 0) return TYPE_STRING_ARRAY;
     if (strcmp(str, "char[]") == 0) return TYPE_CHAR_ARRAY;
+    if (strcmp(str, "int*") == 0) return TYPE_INT_PTR;
+    if (strcmp(str, "float*") == 0) return TYPE_FLOAT_PTR;
+    if (strcmp(str, "string*") == 0) return TYPE_STRING_PTR;
+    if (strcmp(str, "char*") == 0) return TYPE_CHAR_PTR;
     return TYPE_UNKNOWN;
 }
 
@@ -98,6 +102,10 @@ const char *datatype_to_str(DataType type)
         case TYPE_FLOAT_ARRAY: return "float[]";
         case TYPE_STRING_ARRAY: return "string[]";
         case TYPE_CHAR_ARRAY: return "char[]";
+        case TYPE_INT_PTR: return "int*";
+        case TYPE_FLOAT_PTR: return "float*";
+        case TYPE_STRING_PTR: return "string*";
+        case TYPE_CHAR_PTR: return "char*";
         default: return "unknown";
     }
 }
@@ -411,6 +419,34 @@ static ASTNode *parse_unary(Parser *p)
         ASTNode *node = ast_create(AST_UNARY_OP, line, col);
         node->data.unary_op.op = op;
         node->data.unary_op.operand = operand;
+        return node;
+    }
+    /* Address-of operator: &var */
+    if (match_operator(p, "&")) {
+        Token *t = current(p);
+        size_t line = t->line, col = t->column;
+        advance(p);  /* consume '&' */
+        
+        if (current(p) && current(p)->type == TOK_IDENTIFIER) {
+            char *var_name = strdup(current(p)->lexeme);
+            advance(p);
+            ASTNode *node = ast_create(AST_ADDRESS_OF, line, col);
+            node->data.address_of.var_name = var_name;
+            return node;
+        } else {
+            set_error(p, "Expected identifier after '&'", current(p));
+            return NULL;
+        }
+    }
+    /* Dereference operator: *ptr */
+    if (match_operator(p, "*")) {
+        Token *t = current(p);
+        size_t line = t->line, col = t->column;
+        advance(p);  /* consume '*' */
+        
+        ASTNode *operand = parse_unary(p);
+        ASTNode *node = ast_create(AST_DEREF, line, col);
+        node->data.deref.operand = operand;
         return node;
     }
     return parse_primary(p);
@@ -981,6 +1017,40 @@ static ASTNode *parse_statement(Parser *p)
         return node;
     }
 
+    /* Pointer dereference assignment: *ptr = value */
+    if (t->type == TOK_OPERATOR && strcmp(t->lexeme, "*") == 0) {
+        size_t line = t->line, col = t->column;
+        advance(p);  /* consume '*' */
+        
+        /* Parse the pointer expression (could be *ptr or *arr[i] etc.) */
+        ASTNode *ptr_expr = parse_primary(p);
+        if (!ptr_expr) {
+            set_error(p, "Expected expression after '*'", current(p));
+            return NULL;
+        }
+        
+        /* Expect '=' */
+        if (!match_operator(p, "=")) {
+            /* Not an assignment, treat as expression with dereference */
+            ASTNode *deref = ast_create(AST_DEREF, line, col);
+            deref->data.deref.operand = ptr_expr;
+            return deref;
+        }
+        advance(p);  /* consume '=' */
+        
+        /* Parse the value */
+        ASTNode *value = parse_expression(p);
+        if (!value) {
+            set_error(p, "Expected expression after '='", current(p));
+            return NULL;
+        }
+        
+        ASTNode *node = ast_create(AST_DEREF_ASSIGN, line, col);
+        node->data.deref_assign.ptr = ptr_expr;
+        node->data.deref_assign.value = value;
+        return node;
+    }
+
     /* Assignment or expression starting with identifier */
     if (t->type == TOK_IDENTIFIER) {
         /* Look ahead for '=' or '[' (for array assignment) */
@@ -1092,6 +1162,13 @@ static ASTNode *parse_function(Parser *p)
                         param.type = str_to_datatype(arr_type);
                         free(arr_type);
                     }
+                } else if (match_operator(p, "*")) {
+                    advance(p);  /* consume '*' */
+                    /* Combine into pointer type string */
+                    char *ptr_type = malloc(strlen(type_str) + 2);
+                    sprintf(ptr_type, "%s*", type_str);
+                    param.type = str_to_datatype(ptr_type);
+                    free(ptr_type);
                 } else {
                     param.type = str_to_datatype(type_str);
                 }

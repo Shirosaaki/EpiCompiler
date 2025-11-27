@@ -724,6 +724,14 @@ static void emit_mov_ptr_rax_rbx(CodeGenerator *gen)
     buffer_write_byte(&gen->code, 0x18);  /* [rax], rbx */
 }
 
+/* mov [rbx], rax - store rax at address in rbx */
+static void emit_mov_ptr_rbx_rax(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);  /* mov */
+    buffer_write_byte(&gen->code, 0x03);  /* [rbx], rax */
+}
+
 /* idiv rbx */
 static void emit_idiv_rbx(CodeGenerator *gen)
 {
@@ -1393,6 +1401,28 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             return 0;
         }
 
+        case AST_ADDRESS_OF: {
+            /* &var - get address of a variable */
+            const char *var_name = node->data.address_of.var_name;
+            StackVar *var = stack_frame_find(&gen->stack, var_name);
+            if (!var) {
+                gen->error_msg = strdup("Undefined variable in address-of");
+                gen->error_line = node->line;
+                return -1;
+            }
+            /* Load the address of the variable into rax */
+            emit_lea_rax_rbp_offset(gen, var->stack_offset);
+            return 0;
+        }
+
+        case AST_DEREF: {
+            /* *ptr - dereference pointer, get value at address */
+            if (codegen_expression(gen, node->data.deref.operand) != 0) return -1;
+            /* rax now contains the pointer (address), load value at that address */
+            emit_mov_rax_ptr_rax(gen);
+            return 0;
+        }
+
         default:
             gen->error_msg = strdup("Unsupported expression type");
             gen->error_line = node->line;
@@ -1405,6 +1435,7 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
 static int codegen_statement(CodeGenerator *gen, ASTNode *node)
 {
     if (!node) return 0;
+    // fprintf(stderr, "Compiling statement type: %d\n", node->type);
 
     switch (node->type) {
         case AST_VAR_DECL: {
@@ -1473,6 +1504,26 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             if (codegen_expression(gen, node->data.assignment.value) != 0)
                 return -1;
             emit_mov_rbp_offset_rax(gen, var->stack_offset);
+            return 0;
+        }
+
+        case AST_DEREF_ASSIGN: {
+            /* *ptr = value - store value at the address in ptr */
+            
+            /* Evaluate the pointer expression first to get the address */
+            if (codegen_expression(gen, node->data.deref_assign.ptr) != 0)
+                return -1;
+            emit_push_rax(gen);  /* Save address on stack */
+            
+            /* Now evaluate the value */
+            if (codegen_expression(gen, node->data.deref_assign.value) != 0)
+                return -1;
+            /* rax now holds the value to store */
+            
+            emit_pop_rbx(gen);  /* rbx = address */
+            
+            /* Store value at address: mov [rbx], rax */
+            emit_mov_ptr_rbx_rax(gen);
             return 0;
         }
 
@@ -1860,6 +1911,26 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                     free(idx_expr);
                                 }
                                 free(arr_name);
+                            } else if (expr[0] == '*') {
+                                /* Pointer dereference: *ptr */
+                                char *ptr_name = expr + 1;
+                                StackVar *ptr_var = stack_frame_find(&gen->stack, ptr_name);
+                                if (ptr_var) {
+                                    /* Load pointer value from stack */
+                                    emit_mov_rax_rbp_offset(gen, ptr_var->stack_offset);
+                                    /* Dereference: load value at pointer address */
+                                    emit_mov_rax_ptr_rax(gen);
+                                    /* Print the dereferenced value */
+                                    emit_print_int(gen);
+                                } else {
+                                    /* Pointer variable not found */
+                                    size_t err_offset = string_table_add(&gen->strings, "<undefined>");
+                                    emit_mov_eax_imm32(gen, 1);
+                                    emit_mov_edi_imm32(gen, 1);
+                                    emit_mov_rsi_string_offset(gen, err_offset);
+                                    emit_mov_rdx_imm64(gen, 11);
+                                    emit_syscall(gen);
+                                }
                             } else {
                                 /* Simple variable or constant */
                                 StackVar *var = stack_frame_find(&gen->stack, expr);
@@ -1990,7 +2061,7 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             int end_label = codegen_create_label(gen);
             
             /* Jump to else if condition is false (rax == 0) */
-            size_t je_pos = gen->code.size + 2;  /* Position of rel32 */
+            size_t je_pos = gen->code.size + 2;  /* Position of the rel32 */
             emit_je_rel32(gen, 0);  /* Placeholder */
             codegen_patch_label(gen, else_label, je_pos);
             
@@ -2146,6 +2217,26 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                 if (codegen_statement(gen, node->data.block.statements.items[i]) != 0)
                     return -1;
             }
+            return 0;
+        }
+
+        case AST_FUNC_CALL: {
+            /* Expression statement - evaluate the function call for its side effects */
+            if (codegen_expression(gen, node) != 0)
+                return -1;
+            return 0;
+        }
+
+        case AST_BINARY_OP:
+        case AST_UNARY_OP:
+        case AST_IDENTIFIER:
+        case AST_NUMBER:
+        case AST_STRING:
+        case AST_ARRAY_ACCESS:
+        case AST_DEREF: {
+            /* Other expression statements - evaluate for side effects if any */
+            if (codegen_expression(gen, node) != 0)
+                return -1;
             return 0;
         }
 

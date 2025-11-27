@@ -13,13 +13,18 @@
     #include "parser.h"
 
 /* ========== Runtime Values ========== */
+
+/* Forward declaration for pointer support */
+typedef struct Variable Variable;
+
 typedef enum ValueType {
     VAL_INT,
     VAL_FLOAT,
     VAL_STRING,
     VAL_VOID,
-    VAL_ARRAY,  /* Array type */
-    VAL_RETURN  /* Special type for return statements */
+    VAL_ARRAY,   /* Array type */
+    VAL_POINTER, /* Pointer type */
+    VAL_RETURN   /* Special type for return statements */
 } ValueType;
 
 /* Array structure for runtime */
@@ -37,17 +42,18 @@ typedef struct Value {
         double float_val;
         char *string_val;
         ArrayValue *array_val;
+        Variable *ptr_val;  /* Pointer to a variable */
     } data;
     int is_return;  /* Flag for return value propagation */
 } Value;
 
 /* ========== Variable Storage ========== */
-typedef struct Variable {
+struct Variable {
     char *name;
     Value value;
     DataType declared_type;
     int is_borrowed;  /* If 1, don't free the value (it belongs to another scope) */
-} Variable;
+};
 
 typedef struct VarScope {
     Variable *vars;

@@ -22,6 +22,9 @@ typedef enum ASTNodeType {
     AST_ASSIGNMENT,
     AST_ARRAY_ACCESS,      /* Array element access: arr[index] */
     AST_ARRAY_ASSIGN,      /* Array element assignment: arr[index] = value */
+    AST_DEREF,             /* Pointer dereference: *ptr */
+    AST_DEREF_ASSIGN,      /* Pointer dereference assignment: *ptr = value */
+    AST_ADDRESS_OF,        /* Address-of operator: &var */
     AST_RETURN,
     AST_PRINT,
     AST_IF,
@@ -51,6 +54,11 @@ typedef enum DataType {
     TYPE_FLOAT_ARRAY,      /* float[] */
     TYPE_STRING_ARRAY,     /* string[] */
     TYPE_CHAR_ARRAY,       /* char[] */
+    TYPE_INT_PTR,          /* int* */
+    TYPE_FLOAT_PTR,        /* float* */
+    TYPE_STRING_PTR,       /* string* */
+    TYPE_CHAR_PTR,         /* char* */
+    TYPE_VOID_PTR,         /* void* */
     TYPE_UNKNOWN
 } DataType;
 
@@ -122,6 +130,22 @@ struct ASTNode {
             ASTNode *index;
             ASTNode *value;
         } array_assign;
+
+        /* AST_DEREF: *ptr (read through pointer) */
+        struct {
+            ASTNode *operand;  /* The pointer expression */
+        } deref;
+
+        /* AST_DEREF_ASSIGN: *ptr = value (write through pointer) */
+        struct {
+            ASTNode *ptr;      /* The pointer expression */
+            ASTNode *value;    /* Value to write */
+        } deref_assign;
+
+        /* AST_ADDRESS_OF: &var (get address of variable) */
+        struct {
+            char *var_name;    /* Name of the variable to get address of */
+        } address_of;
 
         /* AST_RETURN */
         struct {

@@ -664,6 +664,41 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
             return operand;
         }
 
+        case AST_DEREF: {
+            /* Dereference: *ptr - get value at pointer location */
+            Value ptr_val = eval_expression(interp, node->data.deref.operand);
+            if (ptr_val.type != VAL_POINTER) {
+                set_runtime_error(interp, "Cannot dereference non-pointer", node->line);
+                return value_create_void();
+            }
+            /* Return copied value from the pointer target */
+            Variable *target = ptr_val.data.ptr_val;
+            if (!target) {
+                set_runtime_error(interp, "Null pointer dereference", node->line);
+                return value_create_void();
+            }
+            Value v = target->value;
+            if (v.type == VAL_STRING && v.data.string_val) {
+                v.data.string_val = strdup(target->value.data.string_val);
+            }
+            return v;
+        }
+
+        case AST_ADDRESS_OF: {
+            /* Address-of: &var - get pointer to variable */
+            const char *var_name = node->data.address_of.var_name;
+            Variable *var = scope_get_var(interp->current_scope, var_name);
+            if (!var) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined variable '%s'", var_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            /* Create a pointer value pointing to this variable */
+            Value ptr = { .type = VAL_POINTER, .data.ptr_val = var };
+            return ptr;
+        }
+
         case AST_FUNC_CALL: {
             const char *func_name = node->data.func_call.name;
             FuncDef *func = func_registry_get(&interp->functions, func_name);
@@ -820,6 +855,30 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
             
             size_t index = (size_t)idx_val.data.int_val;
             array_set_element(var->value.data.array_val, index, val);
+            
+            return value_create_void();
+        }
+
+        case AST_DEREF_ASSIGN: {
+            /* Pointer assignment: *ptr = value */
+            /* First evaluate the pointer expression to get the target variable */
+            Value ptr_val = eval_expression(interp, node->data.deref_assign.ptr);
+            if (ptr_val.type != VAL_POINTER) {
+                set_runtime_error(interp, "Cannot dereference non-pointer for assignment", node->line);
+                return value_create_void();
+            }
+            Variable *target = ptr_val.data.ptr_val;
+            if (!target) {
+                set_runtime_error(interp, "Null pointer assignment", node->line);
+                return value_create_void();
+            }
+            
+            /* Evaluate the value to assign */
+            Value val = eval_expression(interp, node->data.deref_assign.value);
+            
+            /* Free the old value and assign new value */
+            value_free(&target->value);
+            target->value = val;
             
             return value_create_void();
         }
