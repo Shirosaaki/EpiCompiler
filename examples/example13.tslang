@@ -1,5 +1,5 @@
 Deschodt somme(tab -> int[], taille -> int) -> int
-    eric total = 0
+    eric total = 0 -> int
     aer i in range(0, taille):
         total = total + tab[i]
     deschodt total
@@ -11,7 +11,7 @@ Deschodt Eric() -> int
     valeurs[2] = 2
     valeurs[3] = 9
 
-    eric res = somme(valeurs, 4)
+    eric res = somme(valeurs, 4) -> int
     peric("Somme = {res}")
     deschodt 0
 

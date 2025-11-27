@@ -41,6 +41,7 @@ typedef struct {
     size_t string_data_offset;  /* For TYPE_STRING: offset in data section */
     size_t string_length;       /* For TYPE_STRING: length of the string */
     int is_array;               /* 1 if this is an array */
+    int is_pointer_array;       /* 1 if this is an array passed by pointer (function param) */
     size_t array_capacity;      /* Maximum elements in array */
     int array_size_offset;      /* Stack offset for current array size (for auto-fill) */
     int array_last_val_offset;  /* Stack offset for last value (for auto-fill) */

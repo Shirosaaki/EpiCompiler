@@ -194,7 +194,9 @@ void scope_free(VarScope *scope)
     if (!scope) return;
     for (size_t i = 0; i < scope->count; ++i) {
         free(scope->vars[i].name);
-        value_free(&scope->vars[i].value);
+        if (!scope->vars[i].is_borrowed) {
+            value_free(&scope->vars[i].value);
+        }
     }
     free(scope->vars);
     free(scope);
@@ -205,8 +207,11 @@ int scope_set_var(VarScope *scope, const char *name, Value val, DataType type)
     /* Check if variable already exists in current scope */
     for (size_t i = 0; i < scope->count; ++i) {
         if (strcmp(scope->vars[i].name, name) == 0) {
-            value_free(&scope->vars[i].value);
+            if (!scope->vars[i].is_borrowed) {
+                value_free(&scope->vars[i].value);
+            }
             scope->vars[i].value = val;
+            scope->vars[i].is_borrowed = 0;
             return 0;
         }
     }
@@ -223,6 +228,7 @@ int scope_set_var(VarScope *scope, const char *name, Value val, DataType type)
     scope->vars[scope->count].name = strdup(name);
     scope->vars[scope->count].value = val;
     scope->vars[scope->count].declared_type = type;
+    scope->vars[scope->count].is_borrowed = 0;
     scope->count++;
     return 0;
 }
@@ -352,10 +358,15 @@ static char *process_format_string(Interpreter *interp, const char *format)
 
     for (size_t i = 0; i < len; ++i) {
         if (format[i] == '{') {
-            /* Find closing brace */
+            /* Find closing brace, handling nested parentheses */
             size_t start = i + 1;
             size_t end = start;
-            while (end < len && format[end] != '}') ++end;
+            int paren_depth = 0;
+            while (end < len && (format[end] != '}' || paren_depth > 0)) {
+                if (format[end] == '(') paren_depth++;
+                else if (format[end] == ')') paren_depth--;
+                ++end;
+            }
 
             if (end < len) {
                 /* Extract expression inside braces */
@@ -366,9 +377,76 @@ static char *process_format_string(Interpreter *interp, const char *format)
 
                 char *val_str = NULL;
                 
+                /* Check if it's a function call: name(...) */
+                char *paren = strchr(expr, '(');
+                if (paren && !strchr(expr, '[')) {
+                    /* Parse function call */
+                    size_t name_len = paren - expr;
+                    char *func_name = malloc(name_len + 1);
+                    strncpy(func_name, expr, name_len);
+                    func_name[name_len] = '\0';
+                    
+                    /* Parse arguments */
+                    char *args_start = paren + 1;
+                    char *args_end = strrchr(args_start, ')');
+                    
+                    if (args_end) {
+                        /* Create a mini AST for the function call */
+                        ASTNode *call_node = ast_create(AST_FUNC_CALL, 0, 0);
+                        if (!call_node) {
+                            free(func_name);
+                            val_str = strdup("<error>");
+                        } else {
+                            call_node->data.func_call.name = func_name;
+                            ast_list_init(&call_node->data.func_call.args);
+                            
+                            /* Parse arguments (simple: just one arg for now) */
+                            size_t args_len = args_end - args_start;
+                            if (args_len > 0) {
+                                char *arg_expr = malloc(args_len + 1);
+                                strncpy(arg_expr, args_start, args_len);
+                                arg_expr[args_len] = '\0';
+                                
+                                /* Check if arg is a variable - if so, get its value and use as number */
+                                Variable *arg_var = scope_get_var(interp->current_scope, arg_expr);
+                                ASTNode *arg_node = ast_create(AST_NUMBER, 0, 0);
+                                if (arg_node) {
+                                    if (arg_var) {
+                                        /* Use the variable's value directly as a number */
+                                        if (arg_var->value.type == VAL_INT) {
+                                            arg_node->data.number.value = (double)arg_var->value.data.int_val;
+                                            arg_node->data.number.is_float = 0;
+                                        } else if (arg_var->value.type == VAL_FLOAT) {
+                                            arg_node->data.number.value = arg_var->value.data.float_val;
+                                            arg_node->data.number.is_float = 1;
+                                        } else {
+                                            arg_node->data.number.value = 0;
+                                            arg_node->data.number.is_float = 0;
+                                        }
+                                    } else {
+                                        /* Try as number */
+                                        arg_node->data.number.value = atof(arg_expr);
+                                        arg_node->data.number.is_float = (strchr(arg_expr, '.') != NULL);
+                                    }
+                                    ast_list_push(&call_node->data.func_call.args, arg_node);
+                                }
+                                free(arg_expr);
+                            }
+                            
+                            /* Evaluate the function call */
+                            Value call_result = eval_expression(interp, call_node);
+                            val_str = value_to_string(&call_result);
+                            value_free(&call_result);
+                            ast_free(call_node);
+                        }
+                    } else {
+                        free(func_name);
+                        val_str = strdup("<error>");
+                    }
+                }
                 /* Check if it's an array access: name[index] */
-                char *bracket = strchr(expr, '[');
-                if (bracket) {
+                else if (strchr(expr, '[')) {
+                    char *bracket = strchr(expr, '[');
                     /* Parse array access */
                     size_t name_len = bracket - expr;
                     char *arr_name = malloc(name_len + 1);
@@ -599,19 +677,33 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
 
             ASTNode *func_node = func->ast_node;
 
+            /* Evaluate arguments BEFORE switching scope (in caller's scope) */
+            size_t param_count = func_node->data.func_def.params.count;
+            size_t arg_count = node->data.func_call.args.count;
+            Value *arg_values = NULL;
+            if (arg_count > 0) {
+                arg_values = malloc(arg_count * sizeof(Value));
+                for (size_t i = 0; i < arg_count; ++i) {
+                    arg_values[i] = eval_expression(interp, node->data.func_call.args.items[i]);
+                }
+            }
+
             /* Create new scope for function */
             VarScope *old_scope = interp->current_scope;
             interp->current_scope = scope_create(NULL);  /* Functions have their own scope */
 
-            /* Bind parameters */
-            size_t param_count = func_node->data.func_def.params.count;
-            size_t arg_count = node->data.func_call.args.count;
-
+            /* Bind parameters with pre-evaluated argument values */
             for (size_t i = 0; i < param_count && i < arg_count; ++i) {
                 FuncParam *param = &func_node->data.func_def.params.items[i];
-                Value arg_val = eval_expression(interp, node->data.func_call.args.items[i]);
-                scope_set_var(interp->current_scope, param->name, arg_val, param->type);
+                scope_set_var(interp->current_scope, param->name, arg_values[i], param->type);
+                
+                /* Mark array parameters as borrowed (they belong to caller's scope) */
+                if (arg_values[i].type == VAL_ARRAY) {
+                    Variable *var = scope_get_var(interp->current_scope, param->name);
+                    if (var) var->is_borrowed = 1;
+                }
             }
+            free(arg_values);
 
             /* Execute function body */
             interp->has_returned = 0;
@@ -639,11 +731,31 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
     switch (node->type) {
         case AST_VAR_DECL: {
             Value init_val;
-            if (node->data.var_decl.init_value) {
+            DataType var_type = node->data.var_decl.var_type;
+            
+            /* Check if this is an array type with size specification */
+            int is_array_type = (var_type == TYPE_INT_ARRAY || var_type == TYPE_FLOAT_ARRAY ||
+                                 var_type == TYPE_STRING_ARRAY || var_type == TYPE_CHAR_ARRAY);
+            
+            if (is_array_type && node->data.var_decl.init_value && 
+                node->data.var_decl.init_value->type == AST_NUMBER) {
+                /* Array with size: int[4] - create array with pre-allocated size */
+                size_t size = (size_t)node->data.var_decl.init_value->data.number.value;
+                ValueType elem_type = VAL_INT;
+                if (var_type == TYPE_FLOAT_ARRAY) elem_type = VAL_FLOAT;
+                else if (var_type == TYPE_STRING_ARRAY) elem_type = VAL_STRING;
+                
+                init_val = value_create_array(elem_type);
+                /* Pre-allocate array with zeros */
+                for (size_t i = 0; i < size; ++i) {
+                    Value zero = value_create_int(0);
+                    array_set_element(init_val.data.array_val, i, zero);
+                }
+            } else if (node->data.var_decl.init_value) {
                 init_val = eval_expression(interp, node->data.var_decl.init_value);
             } else {
                 /* Default initialization based on type */
-                switch (node->data.var_decl.var_type) {
+                switch (var_type) {
                     case TYPE_INT:
                         init_val = value_create_int(0);
                         break;
@@ -671,7 +783,7 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 }
             }
             scope_set_var(interp->current_scope, node->data.var_decl.name,
-                         init_val, node->data.var_decl.var_type);
+                         init_val, var_type);
             return value_create_void();
         }
 

@@ -226,6 +226,9 @@ void parser_free(Parser *parser);
 /* Parse the entire program */
 ASTNode *parser_parse(Parser *parser);
 
+/* Create an AST node */
+ASTNode *ast_create(ASTNodeType type, size_t line, size_t col);
+
 /* Free AST nodes */
 void ast_free(ASTNode *node);
 

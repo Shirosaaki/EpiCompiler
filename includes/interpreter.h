@@ -46,6 +46,7 @@ typedef struct Variable {
     char *name;
     Value value;
     DataType declared_type;
+    int is_borrowed;  /* If 1, don't free the value (it belongs to another scope) */
 } Variable;
 
 typedef struct VarScope {

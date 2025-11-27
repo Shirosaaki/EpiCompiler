@@ -194,6 +194,7 @@ int stack_frame_push_var(StackFrame *sf, const char *name, DataType type)
     sf->items[sf->count].string_data_offset = 0;
     sf->items[sf->count].string_length = 0;
     sf->items[sf->count].is_array = 0;
+    sf->items[sf->count].is_pointer_array = 0;
     sf->items[sf->count].array_capacity = 0;
     sf->items[sf->count].array_size_offset = 0;
     sf->items[sf->count].array_last_val_offset = 0;
@@ -230,6 +231,7 @@ int stack_frame_push_array(StackFrame *sf, const char *name, DataType type, size
     sf->items[sf->count].string_data_offset = 0;
     sf->items[sf->count].string_length = 0;
     sf->items[sf->count].is_array = 1;
+    sf->items[sf->count].is_pointer_array = 0;  /* Stack-allocated, not pointer */
     sf->items[sf->count].array_capacity = capacity;
     sf->items[sf->count].array_size_offset = size_offset;
     sf->items[sf->count].array_last_val_offset = last_val_offset;
@@ -1190,7 +1192,18 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             const char *name = node->data.identifier.name;
             StackVar *var = stack_frame_find(&gen->stack, name);
             if (var) {
-                emit_mov_rax_rbp_offset(gen, var->stack_offset);
+                if (var->is_array) {
+                    /* For arrays, we want to pass the address/pointer */
+                    if (var->is_pointer_array) {
+                        /* Already a pointer, just load it */
+                        emit_mov_rax_rbp_offset(gen, var->stack_offset);
+                    } else {
+                        /* Stack-allocated array, get its address */
+                        emit_lea_rax_rbp_offset(gen, var->stack_offset);
+                    }
+                } else {
+                    emit_mov_rax_rbp_offset(gen, var->stack_offset);
+                }
                 return 0;
             }
             
@@ -1363,8 +1376,13 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             emit_mov_rbx_rax(gen);  /* rbx = index */
             emit_imul_rbx_8(gen);   /* rbx = index * 8 */
             
-            /* Load address of array base: rbp + stack_offset */
-            emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+            if (arr->is_pointer_array) {
+                /* For pointer arrays (function parameters), load the pointer first */
+                emit_mov_rax_rbp_offset(gen, arr->stack_offset);  /* rax = pointer to array */
+            } else {
+                /* For stack-allocated arrays, get address of array base */
+                emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+            }
             
             /* Add index offset to get actual element address */
             emit_add_rax_rbx(gen);
@@ -1717,11 +1735,16 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                     
                     if (i >= fmt_len) break;
                     
-                    /* Found '{', look for '}' */
+                    /* Found '{', look for '}' handling nested parens */
                     if (fmt[i] == '{') {
                         i++;  /* Skip '{' */
                         size_t var_start = i;
-                        while (i < fmt_len && fmt[i] != '}') i++;
+                        int paren_depth = 0;
+                        while (i < fmt_len && (fmt[i] != '}' || paren_depth > 0)) {
+                            if (fmt[i] == '(') paren_depth++;
+                            else if (fmt[i] == ')') paren_depth--;
+                            i++;
+                        }
                         
                         if (i < fmt_len && fmt[i] == '}') {
                             /* Extract expression */
@@ -1730,9 +1753,65 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                             memcpy(expr, fmt + var_start, expr_len);
                             expr[expr_len] = '\0';
                             
+                            /* Check if it's a function call: name(...) */
+                            char *paren = strchr(expr, '(');
+                            if (paren && !strchr(expr, '[')) {
+                                /* Parse function call */
+                                size_t name_len = paren - expr;
+                                char *func_name = malloc(name_len + 1);
+                                memcpy(func_name, expr, name_len);
+                                func_name[name_len] = '\0';
+                                
+                                /* Parse arguments */
+                                char *args_start = paren + 1;
+                                char *args_end = strrchr(args_start, ')');
+                                
+                                if (args_end) {
+                                    /* Create a mini AST for the function call */
+                                    ASTNode *call_node = ast_create(AST_FUNC_CALL, 0, 0);
+                                    call_node->data.func_call.name = func_name;
+                                    ast_list_init(&call_node->data.func_call.args);
+                                    
+                                    /* Parse argument */
+                                    size_t args_len = args_end - args_start;
+                                    if (args_len > 0) {
+                                        char *arg_expr = malloc(args_len + 1);
+                                        memcpy(arg_expr, args_start, args_len);
+                                        arg_expr[args_len] = '\0';
+                                        
+                                        /* Check if arg is a variable or number */
+                                        StackVar *arg_var = stack_frame_find(&gen->stack, arg_expr);
+                                        ASTNode *arg_node;
+                                        if (arg_var) {
+                                            arg_node = ast_create(AST_IDENTIFIER, 0, 0);
+                                            arg_node->data.identifier.name = strdup(arg_expr);
+                                        } else {
+                                            /* Try as number */
+                                            arg_node = ast_create(AST_NUMBER, 0, 0);
+                                            arg_node->data.number.value = atof(arg_expr);
+                                            arg_node->data.number.is_float = (strchr(arg_expr, '.') != NULL);
+                                        }
+                                        ast_list_push(&call_node->data.func_call.args, arg_node);
+                                        free(arg_expr);
+                                    }
+                                    
+                                    /* Compile and execute the function call */
+                                    codegen_expression(gen, call_node);
+                                    emit_print_int(gen);
+                                    ast_free(call_node);
+                                } else {
+                                    free(func_name);
+                                    size_t err_offset = string_table_add(&gen->strings, "<error>");
+                                    emit_mov_eax_imm32(gen, 1);
+                                    emit_mov_edi_imm32(gen, 1);
+                                    emit_mov_rsi_string_offset(gen, err_offset);
+                                    emit_mov_rdx_imm64(gen, 7);
+                                    emit_syscall(gen);
+                                }
+                            }
                             /* Check if it's an array access: name[index] */
-                            char *bracket = strchr(expr, '[');
-                            if (bracket) {
+                            else if (strchr(expr, '[')) {
+                                char *bracket = strchr(expr, '[');
                                 /* Parse array access */
                                 size_t name_len = bracket - expr;
                                 char *arr_name = malloc(name_len + 1);
@@ -2110,8 +2189,22 @@ static int codegen_function(CodeGenerator *gen, ASTNode *node)
     
     /* Load parameters from stack into local variables */
     for (size_t i = 0; i < node->data.func_def.params.count; ++i) {
-        stack_frame_push_var(&gen->stack, node->data.func_def.params.items[i].name,
-                            node->data.func_def.params.items[i].type);
+        DataType param_type = node->data.func_def.params.items[i].type;
+        const char *param_name = node->data.func_def.params.items[i].name;
+        
+        /* Check if parameter is an array type - passed as pointer */
+        int is_array_param = (param_type == TYPE_INT_ARRAY || param_type == TYPE_FLOAT_ARRAY ||
+                              param_type == TYPE_STRING_ARRAY || param_type == TYPE_CHAR_ARRAY);
+        
+        stack_frame_push_var(&gen->stack, param_name, param_type);
+        StackVar *var = stack_frame_find(&gen->stack, param_name);
+        
+        if (is_array_param) {
+            /* For array parameters, mark as pointer array (passed by reference) */
+            var->is_array = 1;
+            var->is_pointer_array = 1;  /* This is a pointer to array data, not stack-allocated */
+        }
+        
         /* Parameters are pushed in reverse order, so first param is at [rbp+16] */
         int param_offset = 16 + (int)(i * 8);
         emit_rex_w(gen);
@@ -2119,7 +2212,6 @@ static int codegen_function(CodeGenerator *gen, ASTNode *node)
         buffer_write_byte(&gen->code, 0x45);
         buffer_write_byte(&gen->code, (uint8_t)param_offset);
         
-        StackVar *var = stack_frame_find(&gen->stack, node->data.func_def.params.items[i].name);
         emit_mov_rbp_offset_rax(gen, var->stack_offset);
     }
     

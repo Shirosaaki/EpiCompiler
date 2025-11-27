@@ -104,7 +104,7 @@ const char *datatype_to_str(DataType type)
 
 /* ========== AST Node Creation ========== */
 
-static ASTNode *ast_create(ASTNodeType type, size_t line, size_t col)
+ASTNode *ast_create(ASTNodeType type, size_t line, size_t col)
 {
     ASTNode *node = calloc(1, sizeof(ASTNode));
     if (!node) return NULL;
@@ -533,9 +533,17 @@ static ASTNode *parse_var_decl(Parser *p)
     type_str[sizeof(type_str) - 3] = '\0';
     advance(p);
     
-    /* Check for [] to make it an array type */
+    /* Check for [size] or [] to make it an array type */
+    size_t array_size = 0;
     if (match_operator(p, "[")) {
         advance(p);  /* consume '[' */
+        
+        /* Check for array size (number) */
+        if (current(p) && current(p)->type == TOK_NUMBER) {
+            array_size = (size_t)atol(current(p)->lexeme);
+            advance(p);  /* consume size */
+        }
+        
         if (match_operator(p, "]")) {
             advance(p);  /* consume ']' */
             strcat(type_str, "[]");
@@ -553,6 +561,17 @@ static ASTNode *parse_var_decl(Parser *p)
     node->data.var_decl.name = var_name;
     node->data.var_decl.var_type = var_type;
     node->data.var_decl.init_value = init_value;
+    
+    /* If array with size, create array initialization */
+    if (array_size > 0 && !init_value) {
+        /* We'll handle array size in the interpreter/codegen */
+        /* For now, store size in a special way - use a number node */
+        ASTNode *size_node = ast_create(AST_NUMBER, line, col);
+        size_node->data.number.value = (double)array_size;
+        size_node->data.number.is_float = 0;
+        node->data.var_decl.init_value = size_node;
+    }
+    
     return node;
 }
 
@@ -1059,8 +1078,24 @@ static ASTNode *parse_function(Parser *p)
         if (match_operator(p, "->")) {
             advance(p);
             if (current(p) && current(p)->type == TOK_IDENTIFIER) {
-                param.type = str_to_datatype(current(p)->lexeme);
+                char *type_str = strdup(current(p)->lexeme);
                 advance(p);
+                
+                /* Check for array type: int[] */
+                if (match_operator(p, "[")) {
+                    advance(p);  /* consume '[' */
+                    if (match_operator(p, "]")) {
+                        advance(p);  /* consume ']' */
+                        /* Combine into array type string */
+                        char *arr_type = malloc(strlen(type_str) + 3);
+                        sprintf(arr_type, "%s[]", type_str);
+                        param.type = str_to_datatype(arr_type);
+                        free(arr_type);
+                    }
+                } else {
+                    param.type = str_to_datatype(type_str);
+                }
+                free(type_str);
             }
         }
 
