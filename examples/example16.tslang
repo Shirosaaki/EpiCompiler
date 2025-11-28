@@ -1,0 +1,23 @@
+Deschodt Eric() -> int
+    eric matix3x3 -> int[]
+    matix3x3[0] -> int[]
+    matix3x3[0][0] -> int[]
+    matix3x3[0][0][0] = 1
+    matix3x3[0][0][1] = 2
+    matix3x3[0][1] -> int[]
+    matix3x3[0][1][0] = 4
+    matix3x3[0][1][2] = 6
+    matix3x3[0][2] -> int[]
+    matix3x3[0][2][0] = 7
+    matix3x3[0][2][2] = 7
+    aer i in range(0, 1):
+        aer j in range(0, 3):
+            aer k in range(0, 3):
+                peric("matix3x3[{i}][{j}][{k}] = {matix3x3[i][j][k]}")
+    matix3x3[0][0][2] = -3
+    matix3x3[0][1][1] += 5
+    peric("After modification:")
+    aer i in range(0, 1):
+        aer j in range(0, 3):
+            aer k in range(0, 3):
+                peric("matix3x3[{i}][{j}][{k}] = {matix3x3[i][j][k]}")

@@ -296,6 +296,9 @@ ASTNode *ast_create(ASTNodeType type, size_t line, size_t col);
 /* Free AST nodes */
 void ast_free(ASTNode *node);
 
+/* Copy an AST node (deep copy) */
+ASTNode *ast_copy(ASTNode *node);
+
 /* AST Node List helpers */
 void ast_list_init(ASTNodeList *list);
 void ast_list_free(ASTNodeList *list);

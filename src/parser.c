@@ -280,6 +280,56 @@ void ast_free(ASTNode *node)
     free(node);
 }
 
+/* Deep copy an AST node */
+ASTNode *ast_copy(ASTNode *node)
+{
+    if (!node) return NULL;
+    
+    ASTNode *copy = ast_create(node->type, node->line, node->column);
+    
+    switch (node->type) {
+        case AST_IDENTIFIER:
+            copy->data.identifier.name = strdup(node->data.identifier.name);
+            break;
+        case AST_NUMBER:
+            copy->data.number.value = node->data.number.value;
+            break;
+        case AST_STRING:
+            copy->data.string.value = strdup(node->data.string.value);
+            break;
+        case AST_BINARY_OP:
+            copy->data.binary_op.op = strdup(node->data.binary_op.op);
+            copy->data.binary_op.left = ast_copy(node->data.binary_op.left);
+            copy->data.binary_op.right = ast_copy(node->data.binary_op.right);
+            break;
+        case AST_UNARY_OP:
+            copy->data.unary_op.op = strdup(node->data.unary_op.op);
+            copy->data.unary_op.operand = ast_copy(node->data.unary_op.operand);
+            break;
+        case AST_ARRAY_ACCESS:
+            copy->data.array_access.array_name = strdup(node->data.array_access.array_name);
+            ast_list_init(&copy->data.array_access.indices);
+            for (size_t i = 0; i < node->data.array_access.indices.count; i++) {
+                ast_list_push(&copy->data.array_access.indices, 
+                             ast_copy(node->data.array_access.indices.items[i]));
+            }
+            break;
+        case AST_FUNC_CALL:
+            copy->data.func_call.name = strdup(node->data.func_call.name);
+            ast_list_init(&copy->data.func_call.args);
+            for (size_t i = 0; i < node->data.func_call.args.count; i++) {
+                ast_list_push(&copy->data.func_call.args,
+                             ast_copy(node->data.func_call.args.items[i]));
+            }
+            break;
+        default:
+            /* For other types, just copy basic fields - extend as needed */
+            break;
+    }
+    
+    return copy;
+}
+
 /* ========== Parser Implementation ========== */
 
 void parser_init(Parser *parser, TokenList *tokens)
@@ -884,15 +934,44 @@ static ASTNode *parse_assignment(Parser *p)
             return node;
         }
 
-        if (!match_operator(p, "=")) {
-            set_error(p, "Expected '=' after array index", current(p));
+        /* Check for compound assignment operators: +=, -=, *=, /=, %= */
+        char *compound_op = NULL;
+        if (match_operator(p, "+=") || match_operator(p, "-=") || 
+            match_operator(p, "*=") || match_operator(p, "/=") || match_operator(p, "%=")) {
+            compound_op = strdup(current(p)->lexeme);
+            advance(p);  /* consume compound operator */
+        } else if (!match_operator(p, "=")) {
+            set_error(p, "Expected '=' or compound assignment after array index", current(p));
             free(var_name);
             ast_list_free(&indices);
             return NULL;
+        } else {
+            advance(p);  /* consume '=' */
         }
-        advance(p);  /* consume '=' */
         
         ASTNode *value = parse_expression(p);
+        
+        /* If compound assignment, convert arr[i] += x to arr[i] = arr[i] + x */
+        if (compound_op) {
+            char bin_op[2] = { compound_op[0], '\0' };  /* Extract +, -, *, /, % */
+            
+            /* Create array access node for left operand */
+            ASTNode *left_access = ast_create(AST_ARRAY_ACCESS, line, col);
+            left_access->data.array_access.array_name = strdup(var_name);
+            ast_list_init(&left_access->data.array_access.indices);
+            for (size_t i = 0; i < indices.count; i++) {
+                ast_list_push(&left_access->data.array_access.indices, ast_copy(indices.items[i]));
+            }
+            
+            /* Create binary op node: arr[i] + x */
+            ASTNode *bin_node = ast_create(AST_BINARY_OP, line, col);
+            bin_node->data.binary_op.op = strdup(bin_op);
+            bin_node->data.binary_op.left = left_access;
+            bin_node->data.binary_op.right = value;
+            
+            value = bin_node;
+            free(compound_op);
+        }
         
         ASTNode *node = ast_create(AST_ARRAY_ASSIGN, line, col);
         node->data.array_assign.array_name = var_name;
@@ -901,13 +980,38 @@ static ASTNode *parse_assignment(Parser *p)
         return node;
     }
 
-    if (!match_operator(p, "=")) {
+    /* Check for compound assignment operators: +=, -=, *=, /=, %= */
+    char *compound_op = NULL;
+    if (match_operator(p, "+=") || match_operator(p, "-=") || 
+        match_operator(p, "*=") || match_operator(p, "/=") || match_operator(p, "%=")) {
+        compound_op = strdup(current(p)->lexeme);
+        advance(p);  /* consume compound operator */
+    } else if (!match_operator(p, "=")) {
         free(var_name);
         return NULL;
+    } else {
+        advance(p);  /* consume '=' */
     }
-    advance(p);  /* consume '=' */
 
     ASTNode *value = parse_expression(p);
+    
+    /* If compound assignment, convert x += y to x = x + y */
+    if (compound_op) {
+        char bin_op[2] = { compound_op[0], '\0' };  /* Extract +, -, *, /, % */
+        
+        /* Create variable access node for left operand */
+        ASTNode *left_var = ast_create(AST_IDENTIFIER, line, col);
+        left_var->data.identifier.name = strdup(var_name);
+        
+        /* Create binary op node: x + y */
+        ASTNode *bin_node = ast_create(AST_BINARY_OP, line, col);
+        bin_node->data.binary_op.op = strdup(bin_op);
+        bin_node->data.binary_op.left = left_var;
+        bin_node->data.binary_op.right = value;
+        
+        value = bin_node;
+        free(compound_op);
+    }
 
     ASTNode *node = ast_create(AST_ASSIGNMENT, line, col);
     node->data.assignment.var_name = var_name;

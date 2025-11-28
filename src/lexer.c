@@ -432,7 +432,12 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
             (src[i] == '=' && src[i+1] == '=') ||
             (src[i] == '!' && src[i+1] == '=') ||
             (src[i] == '<' && src[i+1] == '=') ||
-            (src[i] == '>' && src[i+1] == '=')) {
+            (src[i] == '>' && src[i+1] == '=') ||
+            (src[i] == '+' && src[i+1] == '=') ||
+            (src[i] == '-' && src[i+1] == '=') ||
+            (src[i] == '*' && src[i+1] == '=') ||
+            (src[i] == '/' && src[i+1] == '=') ||
+            (src[i] == '%' && src[i+1] == '=')) {
             char two[3] = { src[i], src[i+1], '\0' };
             char *lex = strdup(two);
             Token t = token_create(TOK_OPERATOR, lex, line, col);
@@ -548,6 +553,13 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                 }
             }
             if (is_binary) {
+                /* Special case: '-' and '+' can be unary operators for negative/positive numbers */
+                if (strcmp(op, "-") == 0 || strcmp(op, "+") == 0) {
+                    /* If there's no value before, it's a unary operator */
+                    if (!prev_is_value) {
+                        continue; /* Skip validation, it's unary -/+ */
+                    }
+                }
                 /* Special case: '*' can be a type suffix (int*, float*, StructName*) or unary dereference (*ptr) */
                 if (strcmp(op, "*") == 0) {
                     int is_type_suffix = 0;
