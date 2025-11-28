@@ -745,17 +745,24 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
                 set_runtime_error(interp, msg, node->line);
                 return value_create_void();
             }
-            if (var->value.type != VAL_ARRAY) {
-                char msg[256];
-                snprintf(msg, sizeof(msg), "'%s' is not an array", node->data.array_access.array_name);
-                set_runtime_error(interp, msg, node->line);
-                return value_create_void();
+            
+            Value current_val = var->value;
+            
+            for (size_t i = 0; i < node->data.array_access.indices.count; ++i) {
+                if (current_val.type != VAL_ARRAY) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg), "'%s' is not an array (at index %zu)", node->data.array_access.array_name, i);
+                    set_runtime_error(interp, msg, node->line);
+                    return value_create_void();
+                }
+                
+                Value idx_val = eval_expression(interp, node->data.array_access.indices.items[i]);
+                size_t index = (size_t)idx_val.data.int_val;
+                
+                current_val = array_get_element(current_val.data.array_val, index);
             }
             
-            Value idx_val = eval_expression(interp, node->data.array_access.index);
-            size_t index = (size_t)idx_val.data.int_val;
-            
-            return array_get_element(var->value.data.array_val, index);
+            return current_val;
         }
 
         case AST_BINARY_OP: {
@@ -951,9 +958,44 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
                 return value_create_void();
             }
             
+            Value current_val = var->value;
+            
+            /* Handle array indices if present */
+            if (node->data.struct_access.indices.count > 0) {
+                for (size_t i = 0; i < node->data.struct_access.indices.count; ++i) {
+                    if (current_val.type != VAL_ARRAY) {
+                        /* Check if it's a pointer to array */
+                        if (current_val.type == VAL_POINTER && current_val.data.ptr_val) {
+                            current_val = current_val.data.ptr_val->value;
+                        }
+                        
+                        if (current_val.type != VAL_ARRAY) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg), "'%s' is not an array", struct_name);
+                            set_runtime_error(interp, msg, node->line);
+                            return value_create_void();
+                        }
+                    }
+                    
+                    Value index_val = eval_expression(interp, node->data.struct_access.indices.items[i]);
+                    if (index_val.type != VAL_INT) {
+                        set_runtime_error(interp, "Array index must be an integer", node->line);
+                        return value_create_void();
+                    }
+                    
+                    size_t idx = (size_t)index_val.data.int_val;
+                    if (idx >= current_val.data.array_val->size) {
+                        set_runtime_error(interp, "Array index out of bounds", node->line);
+                        return value_create_void();
+                    }
+                    
+                    current_val = array_get_element(current_val.data.array_val, idx);
+                }
+            }
+            
             /* Check if it's a pointer to struct */
-            if (var->value.type == VAL_POINTER) {
-                Variable *target = var->value.data.ptr_val;
+            if (current_val.type == VAL_POINTER) {
+                Variable *target = current_val.data.ptr_val;
                 if (target && target->value.type == VAL_STRUCT) {
                     return struct_get_field(target->value.data.struct_val, field_name);
                 }
@@ -963,7 +1005,7 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
                 return value_create_void();
             }
             
-            if (var->value.type != VAL_STRUCT) {
+            if (current_val.type != VAL_STRUCT) {
                 /* Not a struct - try as combined identifier */
                 char combined[512];
                 snprintf(combined, sizeof(combined), "%s.%s", struct_name, field_name);
@@ -981,7 +1023,7 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
                 return value_create_void();
             }
             
-            return struct_get_field(var->value.data.struct_val, field_name);
+            return struct_get_field(current_val.data.struct_val, field_name);
         }
 
         default:
@@ -1083,18 +1125,60 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 set_runtime_error(interp, msg, node->line);
                 return value_create_void();
             }
-            if (var->value.type != VAL_ARRAY) {
+            
+            Value current_val = var->value;
+            
+            /* Traverse indices except the last one */
+            for (size_t i = 0; i < node->data.array_assign.indices.count - 1; ++i) {
+                if (current_val.type != VAL_ARRAY) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg), "'%s' is not an array (at index %zu)", node->data.array_assign.array_name, i);
+                    set_runtime_error(interp, msg, node->line);
+                    return value_create_void();
+                }
+                
+                Value idx_val = eval_expression(interp, node->data.array_assign.indices.items[i]);
+                size_t index = (size_t)idx_val.data.int_val;
+                
+                current_val = array_get_element(current_val.data.array_val, index);
+            }
+            
+            if (current_val.type != VAL_ARRAY) {
                 char msg[256];
-                snprintf(msg, sizeof(msg), "'%s' is not an array", node->data.array_assign.array_name);
+                snprintf(msg, sizeof(msg), "Target is not an array");
                 set_runtime_error(interp, msg, node->line);
                 return value_create_void();
             }
             
-            Value idx_val = eval_expression(interp, node->data.array_assign.index);
+            Value idx_val = eval_expression(interp, node->data.array_assign.indices.items[node->data.array_assign.indices.count - 1]);
+            size_t index = (size_t)idx_val.data.int_val;
+            
             Value val = eval_expression(interp, node->data.array_assign.value);
             
-            size_t index = (size_t)idx_val.data.int_val;
-            array_set_element(var->value.data.array_val, index, val);
+            /* Check for type initialization: nu[0] -> int[] */
+            if (val.type == VAL_STRING && strncmp(val.data.string_val, "TYPE:", 5) == 0) {
+                char *type_str = val.data.string_val + 5;
+                DataType type = str_to_datatype(type_str);
+                
+                Value init_val;
+                switch (type) {
+                    case TYPE_INT_ARRAY:
+                        init_val = value_create_array(VAL_INT);
+                        break;
+                    case TYPE_FLOAT_ARRAY:
+                        init_val = value_create_array(VAL_FLOAT);
+                        break;
+                    case TYPE_STRING_ARRAY:
+                        init_val = value_create_array(VAL_STRING);
+                        break;
+                    default:
+                        init_val = value_create_int(0);
+                        break;
+                }
+                array_set_element(current_val.data.array_val, index, init_val);
+            } else {
+                array_set_element(current_val.data.array_val, index, val);
+            }
             
             return value_create_void();
         }
@@ -1112,9 +1196,44 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 return value_create_void();
             }
             
+            Value current_val = var->value;
+            
+            /* Handle array indices if present */
+            if (node->data.struct_assign.indices.count > 0) {
+                for (size_t i = 0; i < node->data.struct_assign.indices.count; ++i) {
+                    if (current_val.type != VAL_ARRAY) {
+                        /* Check if it's a pointer to array */
+                        if (current_val.type == VAL_POINTER && current_val.data.ptr_val) {
+                            current_val = current_val.data.ptr_val->value;
+                        }
+                        
+                        if (current_val.type != VAL_ARRAY) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg), "'%s' is not an array", struct_name);
+                            set_runtime_error(interp, msg, node->line);
+                            return value_create_void();
+                        }
+                    }
+                    
+                    Value index_val = eval_expression(interp, node->data.struct_assign.indices.items[i]);
+                    if (index_val.type != VAL_INT) {
+                        set_runtime_error(interp, "Array index must be an integer", node->line);
+                        return value_create_void();
+                    }
+                    
+                    size_t idx = (size_t)index_val.data.int_val;
+                    if (idx >= current_val.data.array_val->size) {
+                        set_runtime_error(interp, "Array index out of bounds", node->line);
+                        return value_create_void();
+                    }
+                    
+                    current_val = array_get_element(current_val.data.array_val, idx);
+                }
+            }
+            
             /* Check if it's a pointer to struct */
-            if (var->value.type == VAL_POINTER) {
-                Variable *target = var->value.data.ptr_val;
+            if (current_val.type == VAL_POINTER) {
+                Variable *target = current_val.data.ptr_val;
                 if (target && target->value.type == VAL_STRUCT) {
                     Value val = eval_expression(interp, node->data.struct_assign.value);
                     struct_set_field(target->value.data.struct_val, field_name, val);
@@ -1126,7 +1245,7 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 return value_create_void();
             }
             
-            if (var->value.type != VAL_STRUCT) {
+            if (current_val.type != VAL_STRUCT) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "'%s' is not a struct", struct_name);
                 set_runtime_error(interp, msg, node->line);
@@ -1134,7 +1253,7 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
             }
             
             Value val = eval_expression(interp, node->data.struct_assign.value);
-            struct_set_field(var->value.data.struct_val, field_name, val);
+            struct_set_field(current_val.data.struct_val, field_name, val);
             
             return value_create_void();
         }

@@ -1,0 +1,8 @@
+Deschodt Eric() -> int
+    eric nu -> int[]
+    nu[0] -> int[]
+    nu[0][0] = 1
+    nu[0][1] = 2
+    nu[0][20] = 3
+    aer i in range(0, 21):
+        peric("nu[0][{i}] = {nu[0][i]}")

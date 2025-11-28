@@ -140,13 +140,13 @@ struct ASTNode {
         /* AST_ARRAY_ACCESS: arr[index] */
         struct {
             char *array_name;
-            ASTNode *index;
+            ASTNodeList indices;
         } array_access;
 
         /* AST_ARRAY_ASSIGN: arr[index] = value */
         struct {
             char *array_name;
-            ASTNode *index;
+            ASTNodeList indices;
             ASTNode *value;
         } array_assign;
 
@@ -261,7 +261,7 @@ struct ASTNode {
         struct {
             char *struct_name;
             char *field_name;
-            ASTNode *array_index;  /* NULL if not array element, otherwise the index expression */
+            ASTNodeList indices;  /* Empty if not array element */
         } struct_access;
 
         /* AST_STRUCT_ASSIGN: struct.field = value or arr[i].field = value */
@@ -269,7 +269,7 @@ struct ASTNode {
             char *struct_name;
             char *field_name;
             ASTNode *value;
-            ASTNode *array_index;  /* NULL if not array element, otherwise the index expression */
+            ASTNodeList indices;  /* Empty if not array element */
         } struct_assign;
     } data;
 };

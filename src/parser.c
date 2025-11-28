@@ -181,11 +181,11 @@ void ast_free(ASTNode *node)
             break;
         case AST_ARRAY_ACCESS:
             free(node->data.array_access.array_name);
-            ast_free(node->data.array_access.index);
+            ast_list_free(&node->data.array_access.indices);
             break;
         case AST_ARRAY_ASSIGN:
             free(node->data.array_assign.array_name);
-            ast_free(node->data.array_assign.index);
+            ast_list_free(&node->data.array_assign.indices);
             ast_free(node->data.array_assign.value);
             break;
         case AST_RETURN:
@@ -245,13 +245,13 @@ void ast_free(ASTNode *node)
         case AST_STRUCT_ACCESS:
             free(node->data.struct_access.struct_name);
             free(node->data.struct_access.field_name);
-            ast_free(node->data.struct_access.array_index);
+            ast_list_free(&node->data.struct_access.indices);
             break;
         case AST_STRUCT_ASSIGN:
             free(node->data.struct_assign.struct_name);
             free(node->data.struct_assign.field_name);
             ast_free(node->data.struct_assign.value);
-            ast_free(node->data.struct_assign.array_index);
+            ast_list_free(&node->data.struct_assign.indices);
             break;
         case AST_DEREF:
             ast_free(node->data.deref.operand);
@@ -423,15 +423,22 @@ static ASTNode *parse_primary(Parser *p)
         
         /* Check if it's an array access: arr[index] or arr[index].field */
         if (match_operator(p, "[")) {
-            advance(p);  /* consume '[' */
-            ASTNode *index = parse_expression(p);
-            if (!match_operator(p, "]")) {
-                set_error(p, "Expected ']' after array index", current(p));
-                free(name);
-                ast_free(index);
-                return NULL;
+            ASTNodeList indices;
+            ast_list_init(&indices);
+
+            while (match_operator(p, "[")) {
+                advance(p);  /* consume '[' */
+                ASTNode *index = parse_expression(p);
+                if (!match_operator(p, "]")) {
+                    set_error(p, "Expected ']' after array index", current(p));
+                    free(name);
+                    ast_list_free(&indices);
+                    ast_free(index);
+                    return NULL;
+                }
+                advance(p);  /* consume ']' */
+                ast_list_push(&indices, index);
             }
-            advance(p);  /* consume ']' */
             
             /* Check for struct field access after array index: arr[i].field */
             if (match_operator(p, ".")) {
@@ -439,7 +446,7 @@ static ASTNode *parse_primary(Parser *p)
                 if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
                     set_error(p, "Expected field name after '.'", current(p));
                     free(name);
-                    ast_free(index);
+                    ast_list_free(&indices);
                     return NULL;
                 }
                 char *field_name = strdup(current(p)->lexeme);
@@ -452,7 +459,7 @@ static ASTNode *parse_primary(Parser *p)
                         set_error(p, "Expected field name after '.'", current(p));
                         free(name);
                         free(field_name);
-                        ast_free(index);
+                        ast_list_free(&indices);
                         return NULL;
                     }
                     char *old_field = field_name;
@@ -464,21 +471,16 @@ static ASTNode *parse_primary(Parser *p)
                     advance(p);  /* consume field name */
                 }
                 
-                /* Create a special struct access node that includes array info */
-                /* We'll encode array name and index in struct_name as "array[index]" format */
-                /* But for cleaner handling, we'll create a new AST node type or use existing ones */
-                /* For now, let's use struct access with array name encoded */
                 ASTNode *node = ast_create(AST_STRUCT_ACCESS, line, col);
-                /* Encode as "arrayname[INDEX_MARKER]" - we'll store index in a special way */
                 node->data.struct_access.struct_name = name;
                 node->data.struct_access.field_name = field_name;
-                node->data.struct_access.array_index = index;  /* Need to add this field to the struct */
+                node->data.struct_access.indices = indices;
                 return node;
             }
             
             ASTNode *node = ast_create(AST_ARRAY_ACCESS, line, col);
             node->data.array_access.array_name = name;
-            node->data.array_access.index = index;
+            node->data.array_access.indices = indices;
             return node;
         }
 
@@ -487,7 +489,7 @@ static ASTNode *parse_primary(Parser *p)
             /* Create initial struct access node */
             ASTNode *result = ast_create(AST_STRUCT_ACCESS, line, col);
             result->data.struct_access.struct_name = name;
-            result->data.struct_access.array_index = NULL;  /* Not an array element access */
+            ast_list_init(&result->data.struct_access.indices);  /* Not an array element access */
             
             advance(p);  /* consume '.' */
             if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
@@ -765,15 +767,22 @@ static ASTNode *parse_assignment(Parser *p)
 
     /* Check for array indexing: arr[index] = value or arr[index].field = value */
     if (match_operator(p, "[")) {
-        advance(p);  /* consume '[' */
-        ASTNode *index = parse_expression(p);
-        if (!match_operator(p, "]")) {
-            set_error(p, "Expected ']' after array index", current(p));
-            free(var_name);
-            ast_free(index);
-            return NULL;
+        ASTNodeList indices;
+        ast_list_init(&indices);
+
+        while (match_operator(p, "[")) {
+            advance(p);  /* consume '[' */
+            ASTNode *index = parse_expression(p);
+            if (!match_operator(p, "]")) {
+                set_error(p, "Expected ']' after array index", current(p));
+                free(var_name);
+                ast_list_free(&indices);
+                ast_free(index);
+                return NULL;
+            }
+            advance(p);  /* consume ']' */
+            ast_list_push(&indices, index);
         }
-        advance(p);  /* consume ']' */
         
         /* Check for struct field access after array index: arr[i].field = value */
         if (match_operator(p, ".")) {
@@ -781,7 +790,7 @@ static ASTNode *parse_assignment(Parser *p)
             if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
                 set_error(p, "Expected field name after '.'", current(p));
                 free(var_name);
-                ast_free(index);
+                ast_list_free(&indices);
                 return NULL;
             }
             char *field_name = strdup(current(p)->lexeme);
@@ -794,7 +803,7 @@ static ASTNode *parse_assignment(Parser *p)
                     set_error(p, "Expected field name after '.'", current(p));
                     free(var_name);
                     free(field_name);
-                    ast_free(index);
+                    ast_list_free(&indices);
                     return NULL;
                 }
                 char *old_field = field_name;
@@ -810,7 +819,7 @@ static ASTNode *parse_assignment(Parser *p)
                 set_error(p, "Expected '=' after struct field", current(p));
                 free(var_name);
                 free(field_name);
-                ast_free(index);
+                ast_list_free(&indices);
                 return NULL;
             }
             advance(p);  /* consume '=' */
@@ -822,14 +831,63 @@ static ASTNode *parse_assignment(Parser *p)
             node->data.struct_assign.struct_name = var_name;
             node->data.struct_assign.field_name = field_name;
             node->data.struct_assign.value = value;
-            node->data.struct_assign.array_index = index;
+            node->data.struct_assign.indices = indices;
             return node;
         }
         
+        /* Check for type initialization: arr[i] -> type */
+        if (match_operator(p, "->")) {
+            advance(p); /* consume '->' */
+            
+            /* Parse type string */
+            char *type_str = NULL;
+            if (current(p) && (current(p)->type == TOK_KEYWORD || current(p)->type == TOK_IDENTIFIER)) {
+                type_str = strdup(current(p)->lexeme);
+                advance(p);
+            } else {
+                set_error(p, "Expected type after '->'", current(p));
+                free(var_name);
+                ast_list_free(&indices);
+                return NULL;
+            }
+            
+            /* Check for array type: int[] */
+            while (match_operator(p, "[")) {
+                advance(p);
+                if (!match_operator(p, "]")) {
+                    set_error(p, "Expected ']' in type", current(p));
+                    free(var_name);
+                    free(type_str);
+                    ast_list_free(&indices);
+                    return NULL;
+                }
+                advance(p);
+                char *new_type = malloc(strlen(type_str) + 3);
+                sprintf(new_type, "%s[]", type_str);
+                free(type_str);
+                type_str = new_type;
+            }
+            
+            /* Create a special assignment where value is a string node with the type */
+            /* We'll prefix it with "TYPE:" so interpreter knows */
+            char *type_val = malloc(strlen(type_str) + 6);
+            sprintf(type_val, "TYPE:%s", type_str);
+            free(type_str);
+            
+            ASTNode *value = ast_create(AST_STRING, line, col);
+            value->data.string.value = type_val;
+            
+            ASTNode *node = ast_create(AST_ARRAY_ASSIGN, line, col);
+            node->data.array_assign.array_name = var_name;
+            node->data.array_assign.indices = indices;
+            node->data.array_assign.value = value;
+            return node;
+        }
+
         if (!match_operator(p, "=")) {
             set_error(p, "Expected '=' after array index", current(p));
             free(var_name);
-            ast_free(index);
+            ast_list_free(&indices);
             return NULL;
         }
         advance(p);  /* consume '=' */
@@ -838,7 +896,7 @@ static ASTNode *parse_assignment(Parser *p)
         
         ASTNode *node = ast_create(AST_ARRAY_ASSIGN, line, col);
         node->data.array_assign.array_name = var_name;
-        node->data.array_assign.index = index;
+        node->data.array_assign.indices = indices;
         node->data.array_assign.value = value;
         return node;
     }
@@ -913,7 +971,7 @@ static ASTNode *parse_struct_field_assignment(Parser *p)
     node->data.struct_assign.struct_name = struct_name;
     node->data.struct_assign.field_name = field_name;
     node->data.struct_assign.value = value;
-    node->data.struct_assign.array_index = NULL;  /* Not an array element access */
+    ast_list_init(&node->data.struct_assign.indices);  /* Not an array element access */
     return node;
 }
 
@@ -1769,15 +1827,19 @@ void ast_print(ASTNode *node, int indent)
         case AST_ARRAY_ACCESS:
             printf("ARRAY_ACCESS %s[]\n", node->data.array_access.array_name);
             print_indent(indent + 1);
-            printf("INDEX:\n");
-            ast_print(node->data.array_access.index, indent + 2);
+            printf("INDICES:\n");
+            for (size_t i = 0; i < node->data.array_access.indices.count; ++i) {
+                ast_print(node->data.array_access.indices.items[i], indent + 2);
+            }
             break;
 
         case AST_ARRAY_ASSIGN:
             printf("ARRAY_ASSIGN %s[] =\n", node->data.array_assign.array_name);
             print_indent(indent + 1);
-            printf("INDEX:\n");
-            ast_print(node->data.array_assign.index, indent + 2);
+            printf("INDICES:\n");
+            for (size_t i = 0; i < node->data.array_assign.indices.count; ++i) {
+                ast_print(node->data.array_assign.indices.items[i], indent + 2);
+            }
             print_indent(indent + 1);
             printf("VALUE:\n");
             ast_print(node->data.array_assign.value, indent + 2);

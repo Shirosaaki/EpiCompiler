@@ -710,6 +710,14 @@ static void emit_pop_rbp(CodeGenerator *gen)
     buffer_write_byte(&gen->code, 0x5D);
 }
 
+/* mov rax, rsp */
+static void emit_mov_rax_rsp(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xE0);
+}
+
 /* mov rbp, rsp */
 static void emit_mov_rbp_rsp(CodeGenerator *gen)
 {
@@ -1676,21 +1684,42 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             }
             free(field_path);
             
-            if (is_struct_array && node->data.struct_access.array_index) {
-                /* Struct array access: arr[i].field */
-                /* First evaluate the index into rax */
-                if (codegen_expression(gen, node->data.struct_access.array_index) != 0) return -1;
+            if (node->data.struct_access.indices.count > 0) {
+                /* Struct array access: arr[i]...[j].field */
                 
-                /* rax = index, multiply by struct size to get byte offset */
-                emit_push_rax(gen);  /* Save index */
+                /* Get base address */
+                if (struct_var->is_pointer_array) {
+                    emit_mov_rax_rbp_offset(gen, struct_var->stack_offset);
+                } else {
+                    emit_lea_rax_rbp_offset(gen, struct_var->stack_offset);
+                }
+                
+                /* Handle all indices except the last one (pointer chasing) */
+                for (size_t i = 0; i < node->data.struct_access.indices.count - 1; ++i) {
+                    emit_push_rax(gen); /* Save base */
+                    if (codegen_expression(gen, node->data.struct_access.indices.items[i]) != 0) return -1;
+                    emit_mov_rbx_rax(gen); /* rbx = index */
+                    emit_pop_rax(gen); /* Restore base */
+                    
+                    emit_imul_rbx_8(gen);
+                    emit_add_rax_rbx(gen);
+                    emit_mov_rax_ptr_rax(gen); /* Load pointer to next array */
+                }
+                
+                /* Handle last index (struct access) */
+                emit_push_rax(gen); /* Save base */
+                if (codegen_expression(gen, node->data.struct_access.indices.items[node->data.struct_access.indices.count - 1]) != 0) return -1;
+                emit_mov_rbx_rax(gen); /* rbx = index */
+                emit_pop_rax(gen); /* Restore base */
+                
+                /* Calculate offset: index * struct_size */
+                emit_push_rax(gen); /* Save base */
                 emit_mov_rax_imm64(gen, struct_size);
-                emit_pop_rbx(gen);  /* rbx = index */
-                emit_imul_rax_rbx(gen);  /* rax = index * struct_size */
-                emit_mov_rbx_rax(gen);  /* rbx = element offset */
+                emit_imul_rax_rbx(gen); /* rax = index * struct_size */
+                emit_mov_rbx_rax(gen); /* rbx = offset */
+                emit_pop_rax(gen); /* Restore base */
                 
-                /* Get array base address */
-                emit_lea_rax_rbp_offset(gen, struct_var->stack_offset);
-                emit_add_rax_rbx(gen);  /* rax = address of struct element */
+                emit_add_rax_rbx(gen); /* rax = address of struct element */
                 
                 /* Now add field offset and load the value */
                 emit_rex_w(gen);
@@ -1812,13 +1841,7 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
                 return -1;
             }
             
-            /* Evaluate index expression into rax */
-            if (codegen_expression(gen, node->data.array_access.index) != 0) return -1;
-            
-            /* Calculate offset: index * 8 */
-            emit_mov_rbx_rax(gen);  /* rbx = index */
-            emit_imul_rbx_8(gen);   /* rbx = index * 8 */
-            
+            /* Load base address into RAX */
             if (arr->is_pointer_array) {
                 /* For pointer arrays (function parameters), load the pointer first */
                 emit_mov_rax_rbp_offset(gen, arr->stack_offset);  /* rax = pointer to array */
@@ -1827,11 +1850,29 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
                 emit_lea_rax_rbp_offset(gen, arr->stack_offset);
             }
             
-            /* Add index offset to get actual element address */
-            emit_add_rax_rbx(gen);
-            
-            /* Load value at that address */
-            emit_mov_rax_ptr_rax(gen);
+            /* Loop through indices */
+            for (size_t i = 0; i < node->data.array_access.indices.count; ++i) {
+                /* Save current base address (RAX) */
+                emit_push_rax(gen);
+                
+                /* Evaluate index expression into rax */
+                if (codegen_expression(gen, node->data.array_access.indices.items[i]) != 0) return -1;
+                
+                /* Move index to RBX */
+                emit_mov_rbx_rax(gen);  /* rbx = index */
+                
+                /* Restore base address to RAX */
+                emit_pop_rax(gen);
+                
+                /* Calculate offset: index * 8 */
+                emit_imul_rbx_8(gen);   /* rbx = index * 8 */
+                
+                /* Add index offset to get actual element address */
+                emit_add_rax_rbx(gen);
+                
+                /* Load value at that address */
+                emit_mov_rax_ptr_rax(gen);
+            }
             
             return 0;
         }
@@ -2136,195 +2177,249 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
         }
 
         case AST_ARRAY_ASSIGN: {
-            /* 
-             * Auto-fill array assignment:
-             * If index > current_size and current_size > 0:
-             *   Fill arr[current_size..index-1] with last_value
-             * Then set arr[index] = value
-             * Update current_size = index + 1, last_value = value
-             *
-             * We use callee-saved registers to simplify:
-             * - Store value, index, last_value on stack
-             * - Use rcx as loop counter
-             */
+            /* arr[index] = value */
             StackVar *arr = stack_frame_find(&gen->stack, node->data.array_assign.array_name);
             if (!arr || !arr->is_array) {
-                gen->error_msg = strdup("Undefined array");
+                gen->error_msg = strdup("Undefined array in assignment");
                 gen->error_line = node->line;
                 return -1;
             }
             
-            /* Evaluate value expression */
-            if (codegen_expression(gen, node->data.array_assign.value) != 0) return -1;
-
-            /* Pointer-based arrays (function parameters) don't support auto-fill metadata */
-            if (arr->is_pointer_array) {
-                emit_push_rax(gen);  /* Preserve value */
-                if (codegen_expression(gen, node->data.array_assign.index) != 0) return -1;
-                emit_mov_rbx_rax(gen);      /* rbx = index */
-                emit_imul_rbx_8(gen);        /* offset = index * 8 */
-                emit_mov_rax_rbp_offset(gen, arr->stack_offset);  /* rax = base pointer */
-                emit_add_rax_rbx(gen);       /* rax = &arr[index] */
-                emit_pop_rbx(gen);           /* rbx = value */
-                emit_mov_ptr_rax_rbx(gen);   /* store value */
+            /* Check for type initialization: nu[0] -> int[] */
+            if (node->data.array_assign.value->type == AST_STRING && 
+                strncmp(node->data.array_assign.value->data.string.value, "TYPE:", 5) == 0) {
+                
+                /* Allocate space on stack for the new array */
+                /* 256 elements * 8 bytes = 2048 bytes */
+                int data_size = 2048;
+                emit_sub_rsp_imm32(gen, data_size);
+                
+                /* Get address of new array (current rsp) */
+                emit_mov_rax_rsp(gen);
+                
+                /* Store this address into target element */
+                emit_push_rax(gen); /* Save new array address */
+                
+                /* Calculate address of target element */
+                if (arr->is_pointer_array) {
+                    emit_mov_rax_rbp_offset(gen, arr->stack_offset);
+                } else {
+                    emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+                }
+                
+                /* Traverse indices except last one */
+                for (size_t i = 0; i < node->data.array_assign.indices.count - 1; ++i) {
+                    emit_push_rax(gen);
+                    if (codegen_expression(gen, node->data.array_assign.indices.items[i]) != 0) return -1;
+                    emit_mov_rbx_rax(gen);
+                    emit_pop_rax(gen);
+                    emit_imul_rbx_8(gen);
+                    emit_add_rax_rbx(gen);
+                    emit_mov_rax_ptr_rax(gen);
+                }
+                
+                /* Last index */
+                emit_push_rax(gen);
+                if (codegen_expression(gen, node->data.array_assign.indices.items[node->data.array_assign.indices.count - 1]) != 0) return -1;
+                emit_mov_rbx_rax(gen);
+                emit_pop_rax(gen);
+                emit_imul_rbx_8(gen);
+                emit_add_rax_rbx(gen); /* rax = address of element */
+                
+                /* Pop new array address and store */
+                emit_pop_rbx(gen); /* rbx = new array address */
+                emit_mov_ptr_rax_rbx(gen);
+                
                 return 0;
             }
-
-            /* Store value temporarily at a known stack location */
+            
+            /* Evaluate value first, push to stack */
+            if (codegen_expression(gen, node->data.array_assign.value) != 0) return -1;
             emit_push_rax(gen);  /* Stack: [value] */
             
-            /* Evaluate index expression */
-            if (codegen_expression(gen, node->data.array_assign.index) != 0) return -1;
-            emit_push_rax(gen);  /* Stack: [value, index] */
+            /* For single-dimension arrays, implement auto-fill logic */
+            if (node->data.array_assign.indices.count == 1 && !arr->is_pointer_array) {
+                /* Evaluate the index */
+                if (codegen_expression(gen, node->data.array_assign.indices.items[0]) != 0) return -1;
+                /* rax = target index */
+                
+                /* Save target index */
+                emit_push_rax(gen);  /* Stack: [value, target_index] */
+                
+                /* Load current size */
+                emit_mov_rbx_rax(gen);  /* rbx = target index */
+                emit_mov_rax_rbp_offset(gen, arr->array_size_offset);  /* rax = size */
+                
+                /* Check if size > 0 AND target_index > size */
+                emit_cmp_rax_0(gen);
+                int skip_fill_label = codegen_create_label(gen);
+                size_t jz_pos = gen->code.size + 2;
+                emit_je_rel32(gen, 0);  /* If size == 0, skip fill */
+                codegen_patch_label(gen, skip_fill_label, jz_pos);
+                
+                /* rax = size, rbx = target_index */
+                /* Check if target_index > size (i.e., rbx > rax) */
+                emit_cmp_rax_rbx(gen);
+                int skip_fill2_label = codegen_create_label(gen);
+                size_t jge2_pos = gen->code.size + 2;
+                emit_jge_rel32(gen, 0);  /* If size >= target, skip fill */
+                codegen_patch_label(gen, skip_fill2_label, jge2_pos);
+                
+                /* Need to fill from size to target_index-1 with last_val */
+                /* Use rcx as loop counter, start at size (rax), end at target (rbx) */
+                emit_mov_rcx_rax(gen);  /* rcx = i = size */
+                emit_push_rbx(gen);     /* Save target_index */
+                
+                /* Fill loop */
+                int fill_loop_label = codegen_create_label(gen);
+                int fill_end_label = codegen_create_label(gen);
+                codegen_set_label(gen, fill_loop_label);
+                
+                /* Check: i < target_index */
+                /* target is at [rsp], rcx = i */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x8B);  /* mov rax, [rsp] */
+                buffer_write_byte(&gen->code, 0x04);
+                buffer_write_byte(&gen->code, 0x24);
+                /* rax = target_index */
+                emit_cmp_rcx_rbx(gen);  /* Wrong - rbx was clobbered */
+                
+                /* Fix: compare rcx with rax (target from stack) */
+                emit_cmp_rax_rcx(gen);  /* cmp target, i */
+                size_t jle_pos = gen->code.size + 2;
+                buffer_write_byte(&gen->code, 0x0F);  /* jle rel32 - if target <= i, done */
+                buffer_write_byte(&gen->code, 0x8E);
+                buffer_write_u32(&gen->code, 0);
+                codegen_patch_label(gen, fill_end_label, jle_pos);
+                
+                /* Store last_val at arr[i] */
+                emit_push_rcx(gen);  /* Save i */
+                
+                /* Calculate address: base + i * 8 */
+                emit_lea_rax_rbp_offset(gen, arr->stack_offset);  /* rax = base */
+                emit_pop_rcx(gen);   /* rcx = i */
+                emit_push_rcx(gen);  /* Keep i */
+                
+                /* rcx * 8 -> rbx */
+                emit_mov_rbx_rax(gen);  /* rbx = base */
+                emit_mov_rax_rcx(gen);  /* rax = i */
+                emit_push_rbx(gen);     /* Save base */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x6B);  /* imul rax, rax, 8 */
+                buffer_write_byte(&gen->code, 0xC0);
+                buffer_write_byte(&gen->code, 0x08);
+                emit_pop_rbx(gen);      /* rbx = base */
+                emit_add_rax_rbx(gen);  /* rax = base + i*8 = &arr[i] */
+                
+                /* Load last_val */
+                emit_mov_rbx_rax(gen);  /* rbx = &arr[i] */
+                emit_mov_rax_rbp_offset(gen, arr->array_last_val_offset);
+                
+                /* Store: mov [rbx], rax */
+                emit_mov_ptr_rbx_rax(gen);
+                
+                /* i++ */
+                emit_pop_rcx(gen);
+                emit_inc_rcx(gen);
+                
+                /* Jump back to loop start */
+                size_t jmp_pos = gen->code.size + 1;
+                emit_jmp_rel32(gen, 0);
+                int32_t rel = (int32_t)(gen->labels[fill_loop_label].offset - (jmp_pos + 4));
+                memcpy(gen->code.data + jmp_pos, &rel, 4);
+                
+                codegen_set_label(gen, fill_end_label);
+                emit_pop_rax(gen);  /* Pop saved target */
+                
+                codegen_set_label(gen, skip_fill2_label);
+                codegen_set_label(gen, skip_fill_label);
+                
+                /* Now do the actual assignment */
+                /* Stack: [value, target_index] */
+                emit_pop_rax(gen);  /* rax = target_index */
+                emit_mov_rbx_rax(gen);  /* rbx = index */
+                
+                /* Calculate element address */
+                emit_lea_rax_rbp_offset(gen, arr->stack_offset);  /* rax = base */
+                emit_imul_rbx_8(gen);   /* rbx = index * 8 */
+                emit_add_rax_rbx(gen);  /* rax = element address */
+                
+                /* Get value from stack */
+                emit_pop_rbx(gen);      /* rbx = value */
+                
+                /* Store value */
+                emit_mov_ptr_rax_rbx(gen);
+                
+                /* Update last_val */
+                emit_mov_rax_rbx(gen);  /* rax = value */
+                emit_mov_rbp_offset_rax(gen, arr->array_last_val_offset);
+                
+                /* Need to get index again to update size */
+                /* Re-evaluate index (simpler than saving it) */
+                if (codegen_expression(gen, node->data.array_assign.indices.items[0]) != 0) return -1;
+                /* rax = index */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0xFF);  /* inc rax */
+                buffer_write_byte(&gen->code, 0xC0);
+                /* rax = index + 1 */
+                
+                emit_mov_rbx_rax(gen);  /* rbx = index + 1 */
+                emit_mov_rax_rbp_offset(gen, arr->array_size_offset);  /* rax = old size */
+                emit_cmp_rax_rbx(gen);
+                
+                /* if old_size >= new_size, skip update */
+                int skip_size_update = codegen_create_label(gen);
+                size_t jge_pos = gen->code.size + 2;
+                emit_jge_rel32(gen, 0);
+                codegen_patch_label(gen, skip_size_update, jge_pos);
+                
+                /* Update size */
+                emit_mov_rax_rbx(gen);
+                emit_mov_rbp_offset_rax(gen, arr->array_size_offset);
+                
+                codegen_set_label(gen, skip_size_update);
+                
+                return 0;
+            }
             
-            /* === Auto-fill check === */
-            /* Load current_size */
-            emit_mov_rax_rbp_offset(gen, arr->array_size_offset);
-            emit_push_rax(gen);  /* Stack: [value, index, current_size] */
+            /* Multi-dimensional array - simple assignment without auto-fill */
+            /* Load base address */
+            if (arr->is_pointer_array) {
+                emit_mov_rax_rbp_offset(gen, arr->stack_offset);
+            } else {
+                emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+            }
             
-            /* Load index for comparison */
-            emit_mov_rax_rbp_offset(gen, gen->stack.current_offset + 8);  /* Get index from stack */
-            /* Actually, let's use cleaner approach - reload from stack positions */
+            /* Traverse indices except last one - get pointer to innermost array */
+            for (size_t i = 0; i < node->data.array_assign.indices.count - 1; ++i) {
+                emit_push_rax(gen); /* Save base */
+                
+                if (codegen_expression(gen, node->data.array_assign.indices.items[i]) != 0) return -1;
+                emit_mov_rbx_rax(gen); /* rbx = index */
+                
+                emit_pop_rax(gen); /* Restore base */
+                
+                emit_imul_rbx_8(gen);
+                emit_add_rax_rbx(gen);
+                emit_mov_rax_ptr_rax(gen); /* Load pointer to next array */
+            }
             
-            /* Stack layout: RSP -> [current_size, index, value] */
-            /* Pop all and redo with known positions */
-            emit_pop_rcx(gen);  /* rcx = current_size */
-            emit_pop_rbx(gen);  /* rbx = index */
-            emit_pop_rax(gen);  /* rax = value */
+            /* rax = innermost array base pointer */
+            emit_push_rax(gen);  /* Save array base - Stack: [value, array_base] */
             
-            /* Save them to known stack positions */
-            emit_push_rax(gen);  /* value at [rsp] */
-            emit_push_rbx(gen);  /* index at [rsp+8] - wait, push decrements */
-            emit_push_rcx(gen);  /* current_size at [rsp+16] */
-            /* Stack: RSP -> [current_size, index, value] */
+            /* Evaluate last index */
+            if (codegen_expression(gen, node->data.array_assign.indices.items[node->data.array_assign.indices.count - 1]) != 0) return -1;
+            emit_mov_rbx_rax(gen);  /* rbx = index */
             
-            /* Check: if current_size >= index OR current_size == 0, skip fill */
-            emit_cmp_rcx_rbx(gen);  /* current_size vs index */
-            int skip_fill = codegen_create_label(gen);
-            size_t jge_pos = gen->code.size + 2;
-            emit_jge_rel32(gen, 0);
-            codegen_patch_label(gen, skip_fill, jge_pos);
+            emit_pop_rax(gen);  /* rax = array_base */
             
-            /* Check current_size == 0 */
-            emit_mov_rax_rcx(gen);
-            emit_cmp_rax_0(gen);
-            size_t je_pos = gen->code.size + 2;
-            emit_je_rel32(gen, 0);
-            codegen_patch_label(gen, skip_fill, je_pos);
-            
-            /* === Auto-fill loop === */
-            /* rcx = current_size (loop counter, already set) */
-            /* rbx = index (target, already set) */
-            /* Load last_value and store on stack */
-            emit_mov_rax_rbp_offset(gen, arr->array_last_val_offset);
-            emit_push_rax(gen);  /* Stack: [last_val, current_size, index, value] */
-            
-            /* Also save target index (rbx) on stack since we'll clobber it */
-            emit_push_rbx(gen);  /* Stack: [target_idx, last_val, current_size, index, value] */
-            
-            int loop_start = codegen_create_label(gen);
-            codegen_set_label(gen, loop_start);
-            
-            /* Restore target index for comparison */
-            emit_pop_rbx(gen);  /* rbx = target index */
-            emit_push_rbx(gen);  /* Put it back */
-            
-            /* Check rcx < rbx (loop_counter < target_index) */
-            emit_cmp_rcx_rbx(gen);
-            int loop_end = codegen_create_label(gen);
-            size_t jge_loop = gen->code.size + 2;
-            emit_jge_rel32(gen, 0);
-            codegen_patch_label(gen, loop_end, jge_loop);
-            
-            /* Store last_value at arr[rcx] */
-            /* Calculate address: base + rcx * 8 */
-            emit_push_rcx(gen);  /* Save loop counter */
-            
-            emit_mov_rax_rcx(gen);  /* rax = loop counter */
-            emit_mov_rbx_rax(gen);  /* rbx = loop counter */
-            emit_imul_rbx_8(gen);   /* rbx = loop counter * 8 */
-            emit_lea_rax_rbp_offset(gen, arr->stack_offset);
-            emit_add_rax_rbx(gen);  /* rax = &arr[loop_counter] */
-            
-            /* Get last_value from stack: Stack is [rcx, target_idx, last_val, ...] */
-            /* last_val is at [rsp + 16] */
-            emit_push_rax(gen);  /* Save address, Stack: [addr, rcx, target_idx, last_val, ...] */
-            emit_mov_rax_rbp_offset(gen, arr->array_last_val_offset);  /* Re-load last_val from memory */
-            emit_mov_rbx_rax(gen);  /* rbx = last_val */
-            emit_pop_rax(gen);  /* rax = address */
-            
-            /* Store last_val at address */
-            emit_mov_ptr_rax_rbx(gen);
-            
-            /* Restore and increment loop counter */
-            emit_pop_rcx(gen);  /* rcx = loop counter */
-            emit_inc_rcx(gen);
-            
-            /* Jump back */
-            size_t jmp_pos = gen->code.size + 1;
-            emit_jmp_rel32(gen, 0);
-            int32_t rel = (int32_t)(gen->labels[loop_start].offset - (jmp_pos + 4));
-            memcpy(gen->code.data + jmp_pos, &rel, 4);
-            
-            codegen_set_label(gen, loop_end);
-            
-            /* Clean up: pop target_idx and last_val from stack */
-            emit_pop_rax(gen);  /* Discard target_idx */
-            emit_pop_rax(gen);  /* Discard last_val, Stack: [current_size, index, value] */
-            
-            codegen_set_label(gen, skip_fill);
-            
-            /* === Actual assignment === */
-            /* Stack: [current_size, index, value] */
-            emit_pop_rcx(gen);  /* rcx = current_size (discard) */
-            emit_pop_rbx(gen);  /* rbx = index */
-            emit_pop_rax(gen);  /* rax = value */
-            
-            /* Save value for later */
-            emit_push_rax(gen);
-            emit_push_rbx(gen);  /* Stack: [index, value] */
-            
-            /* Calculate address: base + index * 8 */
+            /* Calculate element address: array_base + index * 8 */
             emit_imul_rbx_8(gen);
-            emit_push_rax(gen);  /* Save value */
-            emit_lea_rax_rbp_offset(gen, arr->stack_offset);
-            emit_add_rax_rbx(gen);  /* rax = &arr[index] */
+            emit_add_rax_rbx(gen);  /* rax = element address */
+            
+            /* Pop value and store */
             emit_pop_rbx(gen);  /* rbx = value */
-            
-            /* Store value */
             emit_mov_ptr_rax_rbx(gen);
-            
-            /* Update size if needed: size = max(size, index + 1) */
-            emit_pop_rbx(gen);  /* rbx = index */
-            emit_pop_rax(gen);  /* rax = value */
-            emit_push_rax(gen);  /* Keep value for last_val update */
-            
-            /* rbx = index, calculate index + 1 */
-            emit_mov_rax_rbx(gen);
-            emit_push_rax(gen);  /* Save index */
-            emit_mov_rcx_rax(gen);
-            emit_inc_rcx(gen);  /* rcx = index + 1 */
-            
-            /* Load current size */
-            emit_mov_rax_rbp_offset(gen, arr->array_size_offset);
-            
-            /* If current_size >= index + 1, skip update */
-            emit_cmp_rax_rcx(gen);
-            int skip_size = codegen_create_label(gen);
-            size_t jge_size = gen->code.size + 2;
-            emit_jge_rel32(gen, 0);
-            codegen_patch_label(gen, skip_size, jge_size);
-            
-            /* Update size */
-            emit_mov_rax_rcx(gen);
-            emit_mov_rbp_offset_rax(gen, arr->array_size_offset);
-            
-            codegen_set_label(gen, skip_size);
-            
-            /* Update last_val */
-            emit_pop_rax(gen);  /* Discard saved index */
-            emit_pop_rax(gen);  /* rax = value */
-            emit_mov_rbp_offset_rax(gen, arr->array_last_val_offset);
             
             return 0;
         }
@@ -2407,26 +2502,45 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             if (codegen_expression(gen, node->data.struct_assign.value) != 0)
                 return -1;
             
-            if (is_struct_array && node->data.struct_assign.array_index) {
-                /* Struct array assignment: arr[i].field = value */
+            if (node->data.struct_assign.indices.count > 0) {
+                /* Struct array assignment: arr[i]...[j].field = value */
                 /* rax has the value to store, save it */
                 emit_push_rax(gen);
                 
-                /* Evaluate the array index */
-                if (codegen_expression(gen, node->data.struct_assign.array_index) != 0)
-                    return -1;
+                /* Get base address */
+                if (struct_var->is_pointer_array) {
+                    emit_mov_rax_rbp_offset(gen, struct_var->stack_offset);
+                } else {
+                    emit_lea_rax_rbp_offset(gen, struct_var->stack_offset);
+                }
                 
-                /* rax = index, multiply by struct size to get element offset */
-                emit_push_rax(gen);  /* Save index */
+                /* Handle all indices except the last one (pointer chasing) */
+                for (size_t i = 0; i < node->data.struct_assign.indices.count - 1; ++i) {
+                    emit_push_rax(gen); /* Save base */
+                    if (codegen_expression(gen, node->data.struct_assign.indices.items[i]) != 0) return -1;
+                    emit_mov_rbx_rax(gen); /* rbx = index */
+                    emit_pop_rax(gen); /* Restore base */
+                    
+                    emit_imul_rbx_8(gen);
+                    emit_add_rax_rbx(gen);
+                    emit_mov_rax_ptr_rax(gen); /* Load pointer to next array */
+                }
+                
+                /* Handle last index (struct access) */
+                emit_push_rax(gen); /* Save base */
+                if (codegen_expression(gen, node->data.struct_assign.indices.items[node->data.struct_assign.indices.count - 1]) != 0) return -1;
+                emit_mov_rbx_rax(gen); /* rbx = index */
+                emit_pop_rax(gen); /* Restore base */
+                
+                /* Calculate offset: index * struct_size */
+                emit_push_rax(gen); /* Save base */
                 emit_mov_rax_imm64(gen, struct_size);
-                emit_pop_rbx(gen);  /* rbx = index */
-                emit_imul_rax_rbx(gen);  /* rax = index * struct_size */
-                emit_mov_rbx_rax(gen);  /* rbx = element byte offset */
+                emit_imul_rax_rbx(gen); /* rax = index * struct_size */
+                emit_mov_rbx_rax(gen); /* rbx = offset */
+                emit_pop_rax(gen); /* Restore base */
                 
-                /* Get array base address */
-                emit_lea_rax_rbp_offset(gen, struct_var->stack_offset);
-                emit_add_rax_rbx(gen);  /* rax = address of struct element */
-                emit_mov_rbx_rax(gen);  /* rbx = struct element address */
+                emit_add_rax_rbx(gen); /* rax = address of struct element */
+                emit_mov_rbx_rax(gen); /* rbx = struct element address */
                 
                 /* Restore value to rax */
                 emit_pop_rax(gen);
@@ -2692,108 +2806,148 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                 arr_name[name_len] = '\0';
                                 trim_whitespace(arr_name);
                                 
-                                char *idx_start = bracket + 1;
-                                char *idx_end = strchr(idx_start, ']');
-                                if (idx_end) {
+                                /* Parse indices */
+                                char *current_pos = bracket;
+                                ASTNodeList indices;
+                                ast_list_init(&indices);
+                                
+                                while (*current_pos == '[') {
+                                    char *idx_start = current_pos + 1;
+                                    char *idx_end = strchr(idx_start, ']');
+                                    if (!idx_end) break;
+                                    
                                     size_t idx_len = idx_end - idx_start;
                                     char *idx_expr = malloc(idx_len + 1);
                                     memcpy(idx_expr, idx_start, idx_len);
                                     idx_expr[idx_len] = '\0';
                                     trim_whitespace(idx_expr);
                                     
-                                    /* Optional field path after ] */
-                                    char *field_path = NULL;
-                                    char *after_idx = idx_end + 1;
-                                    while (*after_idx && isspace((unsigned char)*after_idx)) after_idx++;
-                                    if (*after_idx == '.') {
-                                        after_idx++;
-                                        while (*after_idx && isspace((unsigned char)*after_idx)) after_idx++;
-                                        if (*after_idx) {
-                                            field_path = strdup(after_idx);
-                                            trim_whitespace(field_path);
+                                    /* Create index node */
+                                    StackVar *idx_var = stack_frame_find(&gen->stack, idx_expr);
+                                    ASTNode *idx_node;
+                                    if (idx_var) {
+                                        idx_node = ast_create(AST_IDENTIFIER, 0, 0);
+                                        idx_node->data.identifier.name = strdup(idx_expr);
+                                    } else {
+                                        idx_node = ast_create(AST_NUMBER, 0, 0);
+                                        idx_node->data.number.value = atof(idx_expr);
+                                        idx_node->data.number.is_float = 0;
+                                    }
+                                    ast_list_push(&indices, idx_node);
+                                    
+                                    free(idx_expr);
+                                    current_pos = idx_end + 1;
+                                    while (*current_pos && isspace((unsigned char)*current_pos)) current_pos++;
+                                }
+                                
+                                /* Optional field path after last ] */
+                                char *field_path = NULL;
+                                if (*current_pos == '.') {
+                                    current_pos++;
+                                    while (*current_pos && isspace((unsigned char)*current_pos)) current_pos++;
+                                    if (*current_pos) {
+                                        field_path = strdup(current_pos);
+                                        trim_whitespace(field_path);
+                                    }
+                                }
+                                
+                                StackVar *arr = stack_frame_find(&gen->stack, arr_name);
+                                int handled = 0;
+                                
+                                if (arr && arr->is_array) {
+                                    int is_struct_array = (arr->struct_name != NULL && field_path && *field_path);
+                                    if (is_struct_array) {
+                                        /* Struct array access logic */
+                                        StructDefInfo *struct_def = struct_def_table_find(&gen->struct_defs, arr->struct_name);
+                                        if (struct_def) {
+                                            size_t struct_size = calc_struct_size(&gen->struct_defs, struct_def);
+                                            DataType field_type = TYPE_UNKNOWN;
+                                            int field_offset = calc_field_offset(&gen->struct_defs, struct_def, field_path, &field_type);
+                                            if (field_offset >= 0) {
+                                                /* Load base address */
+                                                if (arr->is_pointer_array) {
+                                                    emit_mov_rax_rbp_offset(gen, arr->stack_offset);
+                                                } else {
+                                                    emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+                                                }
+                                                
+                                                /* Handle indices except last one */
+                                                for (size_t i = 0; i < indices.count - 1; ++i) {
+                                                    emit_push_rax(gen);
+                                                    if (codegen_expression(gen, indices.items[i]) != 0) break;
+                                                    emit_mov_rbx_rax(gen);
+                                                    emit_pop_rax(gen);
+                                                    emit_imul_rbx_8(gen);
+                                                    emit_add_rax_rbx(gen);
+                                                    emit_mov_rax_ptr_rax(gen);
+                                                }
+                                                
+                                                /* Handle last index */
+                                                emit_push_rax(gen);
+                                                if (codegen_expression(gen, indices.items[indices.count - 1]) != 0) {
+                                                    /* Error handling */
+                                                }
+                                                emit_mov_rbx_rax(gen);
+                                                emit_pop_rax(gen);
+                                                
+                                                /* Calculate offset: index * struct_size */
+                                                emit_push_rax(gen);
+                                                emit_mov_rax_imm64(gen, struct_size);
+                                                emit_imul_rax_rbx(gen);
+                                                emit_mov_rbx_rax(gen);
+                                                emit_pop_rax(gen);
+                                                
+                                                emit_add_rax_rbx(gen);
+                                                
+                                                emit_rex_w(gen);
+                                                buffer_write_byte(&gen->code, 0x8B);
+                                                buffer_write_byte(&gen->code, 0x80);
+                                                buffer_write_u32(&gen->code, (uint32_t)field_offset);
+                                                
+                                                if (field_type == TYPE_STRING) {
+                                                    emit_print_string_compute_len(gen);
+                                                } else {
+                                                    emit_print_int(gen);
+                                                }
+                                                handled = 1;
+                                            }
                                         }
                                     }
                                     
-                                    StackVar *arr = stack_frame_find(&gen->stack, arr_name);
-                                    StackVar *idx_var = stack_frame_find(&gen->stack, idx_expr);
-                                    int handled = 0;
-                                    
-                                    if (arr && arr->is_array) {
-                                        int is_struct_array = (arr->struct_name != NULL && field_path && *field_path);
-                                        if (is_struct_array) {
-                                            StructDefInfo *struct_def = struct_def_table_find(&gen->struct_defs, arr->struct_name);
-                                            if (struct_def) {
-                                                size_t struct_size = calc_struct_size(&gen->struct_defs, struct_def);
-                                                DataType field_type = TYPE_UNKNOWN;
-                                                int field_offset = calc_field_offset(&gen->struct_defs, struct_def, field_path, &field_type);
-                                                if (field_offset >= 0) {
-                                                    /* Load index */
-                                                    if (idx_var) {
-                                                        emit_mov_rax_rbp_offset(gen, idx_var->stack_offset);
-                                                    } else {
-                                                        long idx_val = atol(idx_expr);
-                                                        emit_mov_rax_imm64(gen, (uint64_t)idx_val);
-                                                    }
-                                                    emit_push_rax(gen);
-                                                    emit_mov_rax_imm64(gen, struct_size);
-                                                    emit_pop_rbx(gen);
-                                                    emit_imul_rax_rbx(gen);  /* rax = index * struct_size */
-                                                    emit_mov_rbx_rax(gen);
-                                                    
-                                                    if (arr->is_pointer_array) {
-                                                        emit_mov_rax_rbp_offset(gen, arr->stack_offset);
-                                                    } else {
-                                                        emit_lea_rax_rbp_offset(gen, arr->stack_offset);
-                                                    }
-                                                    emit_add_rax_rbx(gen);  /* rax = element address */
-                                                    
-                                                    emit_rex_w(gen);
-                                                    buffer_write_byte(&gen->code, 0x8B);
-                                                    buffer_write_byte(&gen->code, 0x80);
-                                                    buffer_write_u32(&gen->code, (uint32_t)field_offset);
-                                                    
-                                                    if (field_type == TYPE_STRING) {
-                                                        emit_print_string_compute_len(gen);
-                                                    } else {
-                                                        emit_print_int(gen);
-                                                    }
-                                                    handled = 1;
-                                                }
-                                            }
+                                    if (!handled) {
+                                        /* Primitive array access */
+                                        /* Load base address */
+                                        if (arr->is_pointer_array) {
+                                            emit_mov_rax_rbp_offset(gen, arr->stack_offset);
+                                        } else {
+                                            emit_lea_rax_rbp_offset(gen, arr->stack_offset);
                                         }
                                         
-                                        if (!handled) {
-                                            /* Primitive array or fallback */
-                                            if (idx_var) {
-                                                emit_mov_rax_rbp_offset(gen, idx_var->stack_offset);
-                                            } else {
-                                                long idx_val = atol(idx_expr);
-                                                emit_mov_rax_imm64(gen, (uint64_t)idx_val);
-                                            }
+                                        /* Handle all indices */
+                                        for (size_t i = 0; i < indices.count; ++i) {
+                                            emit_push_rax(gen);
+                                            if (codegen_expression(gen, indices.items[i]) != 0) break;
                                             emit_mov_rbx_rax(gen);
+                                            emit_pop_rax(gen);
                                             emit_imul_rbx_8(gen);
-                                            
-                                            if (arr->is_pointer_array) {
-                                                emit_mov_rax_rbp_offset(gen, arr->stack_offset);
-                                            } else {
-                                                emit_lea_rax_rbp_offset(gen, arr->stack_offset);
-                                            }
                                             emit_add_rax_rbx(gen);
                                             emit_mov_rax_ptr_rax(gen);
-                                            emit_print_int(gen);
                                         }
-                                    } else {
-                                        size_t err_offset = string_table_add(&gen->strings, "<undefined>");
-                                        emit_mov_eax_imm32(gen, 1);
-                                        emit_mov_edi_imm32(gen, 1);
-                                        emit_mov_rsi_string_offset(gen, err_offset);
-                                        emit_mov_rdx_imm64(gen, 11);
-                                        emit_syscall(gen);
+                                        
+                                        emit_print_int(gen);
                                     }
-                                    free(field_path);
-                                    free(idx_expr);
+                                } else {
+                                    size_t err_offset = string_table_add(&gen->strings, "<undefined>");
+                                    emit_mov_eax_imm32(gen, 1);
+                                    emit_mov_edi_imm32(gen, 1);
+                                    emit_mov_rsi_string_offset(gen, err_offset);
+                                    emit_mov_rdx_imm64(gen, 11);
+                                    emit_syscall(gen);
                                 }
+                                
                                 free(arr_name);
+                                if (field_path) free(field_path);
+                                ast_list_free(&indices);
                             } else if (expr[0] == '*') {
                                 /* Pointer dereference: *ptr */
                                 char *ptr_name = expr + 1;
