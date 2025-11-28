@@ -776,6 +776,98 @@ static void emit_push_rbx(CodeGenerator *gen)
     buffer_write_byte(&gen->code, 0x53);
 }
 
+/* push r12 */
+static void emit_push_r12(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x41);
+    buffer_write_byte(&gen->code, 0x54);
+}
+
+/* pop r12 */
+static void emit_pop_r12(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x41);
+    buffer_write_byte(&gen->code, 0x5C);
+}
+
+/* push r13 */
+static void emit_push_r13(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x41);
+    buffer_write_byte(&gen->code, 0x55);
+}
+
+/* pop r13 */
+static void emit_pop_r13(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x41);
+    buffer_write_byte(&gen->code, 0x5D);
+}
+
+/* mov r12, rax */
+static void emit_mov_r12_rax(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x49);  /* REX.WB */
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xC4);  /* rax -> r12 */
+}
+
+/* mov r13, rax */
+static void emit_mov_r13_rax(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x49);  /* REX.WB */
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xC5);  /* rax -> r13 */
+}
+
+/* mov rax, r12 */
+static void emit_mov_rax_r12(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x4C);  /* REX.WR */
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xE0);  /* r12 -> rax */
+}
+
+/* mov rax, r13 */
+static void emit_mov_rax_r13(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x4C);  /* REX.WR */
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xE8);  /* r13 -> rax */
+}
+
+/* mov rcx, r13 */
+static void emit_mov_rcx_r13(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x4C);  /* REX.WR */
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xE9);  /* r13 -> rcx */
+}
+
+/* mov rcx, r12 */
+static void emit_mov_rcx_r12(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x4C);  /* REX.WR */
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xE1);  /* r12 -> rcx */
+}
+
+/* inc r13 */
+static void emit_inc_r13(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x49);  /* REX.WB */
+    buffer_write_byte(&gen->code, 0xFF);
+    buffer_write_byte(&gen->code, 0xC5);
+}
+
+/* cmp r13, r12 */
+static void emit_cmp_r13_r12(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x4D);  /* REX.WRB */
+    buffer_write_byte(&gen->code, 0x39);
+    buffer_write_byte(&gen->code, 0xE5);  /* cmp r13, r12 */
+}
+
 /* ret */
 static void emit_ret(CodeGenerator *gen)
 {
@@ -897,6 +989,23 @@ static void emit_imul_rbx_8(CodeGenerator *gen)
     buffer_write_byte(&gen->code, 0x6B);  /* imul r64, r/m64, imm8 */
     buffer_write_byte(&gen->code, 0xDB);  /* rbx, rbx */
     buffer_write_byte(&gen->code, 0x08);  /* 8 */
+}
+
+/* imul rcx, rcx, 8 */
+static void emit_imul_rcx_8(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x6B);  /* imul r64, r/m64, imm8 */
+    buffer_write_byte(&gen->code, 0xC9);  /* rcx, rcx */
+    buffer_write_byte(&gen->code, 0x08);  /* 8 */
+}
+
+/* add rax, rcx */
+static void emit_add_rax_rcx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x01);
+    buffer_write_byte(&gen->code, 0xC8);
 }
 
 /* lea rax, [rbp + offset] */
@@ -2189,13 +2298,133 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             if (node->data.array_assign.value->type == AST_STRING && 
                 strncmp(node->data.array_assign.value->data.string.value, "TYPE:", 5) == 0) {
                 
-                /* Allocate space on stack for the new array */
-                /* 256 elements * 8 bytes = 2048 bytes */
-                int data_size = 2048;
-                emit_sub_rsp_imm32(gen, data_size);
+                /* For single-dimension case (nu[i] -> int[]), we need to:
+                 * 1. Allocate from old_size to target_index (inclusive)
+                 * 2. Each slot gets its own sub-array
+                 */
                 
-                /* Get address of new array (current rsp) */
-                emit_mov_rax_rsp(gen);
+                if (node->data.array_assign.indices.count == 1 && !arr->is_pointer_array) {
+                    /* Single dimension - need to handle auto-fill for outer array */
+                    int metadata_size = 16;
+                    int data_size = 2048;
+                    
+                    /* Evaluate target index and save to r12 (callee-saved) */
+                    if (codegen_expression(gen, node->data.array_assign.indices.items[0]) != 0) return -1;
+                    emit_push_r12(gen);  /* Save old r12 */
+                    emit_push_r13(gen);  /* Save old r13 */
+                    emit_mov_r12_rax(gen);  /* r12 = target_index */
+                    
+                    /* Load current size into r13 = loop counter */
+                    emit_mov_rax_rbp_offset(gen, arr->array_size_offset);
+                    emit_mov_r13_rax(gen);  /* r13 = i = old_size */
+                    
+                    /* Loop: while (r13 <= r12) allocate sub-array for r13, r13++ */
+                    int loop_label = codegen_create_label(gen);
+                    int end_label = codegen_create_label(gen);
+                    
+                    codegen_set_label(gen, loop_label);
+                    
+                    /* Check r13 <= r12 */
+                    emit_cmp_r13_r12(gen);
+                    size_t jg_pos = gen->code.size + 2;
+                    buffer_write_byte(&gen->code, 0x0F);  /* jg end */
+                    buffer_write_byte(&gen->code, 0x8F);
+                    buffer_write_u32(&gen->code, 0);
+                    codegen_patch_label(gen, end_label, jg_pos);
+                    
+                    /* Allocate sub-array */
+                    emit_sub_rsp_imm32(gen, metadata_size + data_size);
+                    
+                    /* Initialize metadata to 0 */
+                    emit_mov_rax_imm64(gen, 0);
+                    emit_rex_w(gen);
+                    buffer_write_byte(&gen->code, 0x89);  /* mov [rsp], rax */
+                    buffer_write_byte(&gen->code, 0x04);
+                    buffer_write_byte(&gen->code, 0x24);
+                    emit_rex_w(gen);
+                    buffer_write_byte(&gen->code, 0x89);  /* mov [rsp+8], rax */
+                    buffer_write_byte(&gen->code, 0x44);
+                    buffer_write_byte(&gen->code, 0x24);
+                    buffer_write_byte(&gen->code, 0x08);
+                    
+                    /* Get data address (rsp + 16) into rbx */
+                    emit_rex_w(gen);
+                    buffer_write_byte(&gen->code, 0x8D);  /* lea rbx, [rsp+16] */
+                    buffer_write_byte(&gen->code, 0x5C);
+                    buffer_write_byte(&gen->code, 0x24);
+                    buffer_write_byte(&gen->code, 0x10);
+                    
+                    /* Calculate &arr[r13] */
+                    emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+                    emit_mov_rcx_r13(gen);  /* rcx = i */
+                    emit_imul_rcx_8(gen);
+                    emit_add_rax_rcx(gen);  /* rax = &arr[i] */
+                    
+                    /* Store sub-array address */
+                    emit_mov_ptr_rax_rbx(gen);
+                    
+                    /* i++ */
+                    emit_inc_r13(gen);
+                    
+                    /* Jump back to loop */
+                    size_t jmp_pos = gen->code.size + 1;
+                    emit_jmp_rel32(gen, 0);
+                    int32_t rel = (int32_t)(gen->labels[loop_label].offset - (jmp_pos + 4));
+                    memcpy(gen->code.data + jmp_pos, &rel, 4);
+                    
+                    codegen_set_label(gen, end_label);
+                    
+                    /* Update outer array size = target_index + 1 */
+                    emit_mov_rax_r12(gen);
+                    emit_rex_w(gen);
+                    buffer_write_byte(&gen->code, 0xFF);  /* inc rax */
+                    buffer_write_byte(&gen->code, 0xC0);
+                    emit_mov_rbp_offset_rax(gen, arr->array_size_offset);
+                    
+                    /* Update last_val to the target sub-array address */
+                    emit_lea_rax_rbp_offset(gen, arr->stack_offset);
+                    emit_mov_rcx_r12(gen);
+                    emit_imul_rcx_8(gen);
+                    emit_add_rax_rcx(gen);
+                    emit_mov_rax_ptr_rax(gen);  /* rax = arr[target_index] */
+                    emit_mov_rbp_offset_rax(gen, arr->array_last_val_offset);
+                    
+                    /* Restore r12, r13 */
+                    emit_pop_r13(gen);
+                    emit_pop_r12(gen);
+                    
+                    /* The pops above moved RSP up by 16 bytes, but that space is now
+                     * part of the first sub-array's metadata. Move RSP back down. */
+                    emit_sub_rsp_imm32(gen, 16);
+                    
+                    return 0;
+                }
+                
+                /* Multi-dimensional type init - just allocate one sub-array */
+                int metadata_size = 16;
+                int data_size = 2048;
+                emit_sub_rsp_imm32(gen, metadata_size + data_size);
+                
+                /* Initialize size to 0: [rsp] = 0 */
+                emit_mov_rax_imm64(gen, 0);
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x89);  /* mov [rsp], rax */
+                buffer_write_byte(&gen->code, 0x04);
+                buffer_write_byte(&gen->code, 0x24);
+                
+                /* Initialize last_val to 0: [rsp+8] = 0 */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x89);  /* mov [rsp+8], rax */
+                buffer_write_byte(&gen->code, 0x44);
+                buffer_write_byte(&gen->code, 0x24);
+                buffer_write_byte(&gen->code, 0x08);
+                
+                /* Get address of array data (rsp + 16) */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x8D);  /* lea rax, [rsp+16] */
+                buffer_write_byte(&gen->code, 0x44);
+                buffer_write_byte(&gen->code, 0x24);
+                buffer_write_byte(&gen->code, 0x10);
                 
                 /* Store this address into target element */
                 emit_push_rax(gen); /* Save new array address */
@@ -2382,7 +2611,7 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                 return 0;
             }
             
-            /* Multi-dimensional array - simple assignment without auto-fill */
+            /* Multi-dimensional array - simple assignment (no auto-fill for now) */
             /* Load base address */
             if (arr->is_pointer_array) {
                 emit_mov_rax_rbp_offset(gen, arr->stack_offset);
@@ -2405,21 +2634,177 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             }
             
             /* rax = innermost array base pointer */
-            emit_push_rax(gen);  /* Save array base - Stack: [value, array_base] */
+            emit_push_rax(gen);  /* Save array_base - Stack: [value, array_base] */
             
             /* Evaluate last index */
             if (codegen_expression(gen, node->data.array_assign.indices.items[node->data.array_assign.indices.count - 1]) != 0) return -1;
-            emit_mov_rbx_rax(gen);  /* rbx = index */
+            emit_mov_rbx_rax(gen);  /* rbx = target_index */
             
             emit_pop_rax(gen);  /* rax = array_base */
             
-            /* Calculate element address: array_base + index * 8 */
-            emit_imul_rbx_8(gen);
-            emit_add_rax_rbx(gen);  /* rax = element address */
+            /* Save array_base and target_index for auto-fill */
+            emit_push_rax(gen);  /* Stack: [value, array_base] */
+            emit_push_rbx(gen);  /* Stack: [value, array_base, target_index] */
             
-            /* Pop value and store */
-            emit_pop_rbx(gen);  /* rbx = value */
-            emit_mov_ptr_rax_rbx(gen);
+            /* === Auto-fill: check if size > 0 and target > size === */
+            /* size is at [array_base - 16], last_val at [array_base - 8] */
+            
+            /* Load size */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x8B);  /* mov rcx, [rax-16] */
+            buffer_write_byte(&gen->code, 0x48);
+            buffer_write_byte(&gen->code, 0xF0);  /* -16 */
+            /* rcx = size */
+            
+            /* if size == 0, skip fill */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x83);  /* cmp rcx, 0 */
+            buffer_write_byte(&gen->code, 0xF9);
+            buffer_write_byte(&gen->code, 0x00);
+            
+            int skip_fill_label = codegen_create_label(gen);
+            size_t jz_pos = gen->code.size + 2;
+            emit_je_rel32(gen, 0);
+            codegen_patch_label(gen, skip_fill_label, jz_pos);
+            
+            /* if target_index <= size, skip fill */
+            /* rbx = target_index, rcx = size */
+            emit_cmp_rcx_rbx(gen);  /* cmp size, target */
+            int skip_fill2_label = codegen_create_label(gen);
+            size_t jge_pos = gen->code.size + 2;
+            emit_jge_rel32(gen, 0);  /* if size >= target, skip */
+            codegen_patch_label(gen, skip_fill2_label, jge_pos);
+            
+            /* Fill loop: i = size (rcx) to target-1 (rbx-1) */
+            /* Load last_val from [array_base - 8] */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x8B);  /* mov rax, [rsp+8] - array_base */
+            buffer_write_byte(&gen->code, 0x44);
+            buffer_write_byte(&gen->code, 0x24);
+            buffer_write_byte(&gen->code, 0x08);
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x8B);  /* mov rdi, [rax-8] - last_val */
+            buffer_write_byte(&gen->code, 0x78);
+            buffer_write_byte(&gen->code, 0xF8);
+            /* rdi = last_val, rcx = i, rbx = target */
+            
+            int fill_loop = codegen_create_label(gen);
+            int fill_done = codegen_create_label(gen);
+            codegen_set_label(gen, fill_loop);
+            
+            /* if i >= target, done */
+            emit_cmp_rcx_rbx(gen);
+            size_t jge2_pos = gen->code.size + 2;
+            emit_jge_rel32(gen, 0);
+            codegen_patch_label(gen, fill_done, jge2_pos);
+            
+            /* arr[i] = last_val */
+            /* address = array_base + i * 8 */
+            emit_push_rcx(gen);
+            emit_push_rbx(gen);
+            emit_push_rax(gen);  /* Save rax (will be clobbered) */
+            
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x8B);  /* mov rax, [rsp+32] - array_base */
+            buffer_write_byte(&gen->code, 0x44);
+            buffer_write_byte(&gen->code, 0x24);
+            buffer_write_byte(&gen->code, 0x20);
+            emit_mov_rbx_rax(gen);  /* rbx = array_base */
+            
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x8B);  /* mov rax, [rsp+16] - i (saved rcx) */
+            buffer_write_byte(&gen->code, 0x44);
+            buffer_write_byte(&gen->code, 0x24);
+            buffer_write_byte(&gen->code, 0x10);
+            /* rax = i */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x6B);  /* imul rax, rax, 8 */
+            buffer_write_byte(&gen->code, 0xC0);
+            buffer_write_byte(&gen->code, 0x08);
+            emit_add_rax_rbx(gen);  /* rax = &arr[i] */
+            
+            /* Store last_val (rdi) at [rax] */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x89);  /* mov [rax], rdi */
+            buffer_write_byte(&gen->code, 0x38);
+            
+            emit_pop_rax(gen);
+            emit_pop_rbx(gen);
+            emit_pop_rcx(gen);
+            
+            /* i++ */
+            emit_inc_rcx(gen);
+            
+            /* Jump back */
+            size_t jmp_pos = gen->code.size + 1;
+            emit_jmp_rel32(gen, 0);
+            int32_t rel = (int32_t)(gen->labels[fill_loop].offset - (jmp_pos + 4));
+            memcpy(gen->code.data + jmp_pos, &rel, 4);
+            
+            codegen_set_label(gen, fill_done);
+            codegen_set_label(gen, skip_fill2_label);
+            codegen_set_label(gen, skip_fill_label);
+            
+            /* === Now do actual assignment === */
+            /* Stack: [value, array_base, target_index] */
+            emit_pop_rbx(gen);  /* rbx = target_index */
+            emit_pop_rax(gen);  /* rax = array_base */
+            emit_push_rax(gen);  /* Keep array_base */
+            emit_push_rbx(gen);  /* Keep target_index */
+            
+            /* Calculate address */
+            emit_imul_rbx_8(gen);
+            emit_add_rax_rbx(gen);  /* rax = &arr[target] */
+            
+            /* Get value from stack */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x8B);  /* mov rbx, [rsp+16] - value */
+            buffer_write_byte(&gen->code, 0x5C);
+            buffer_write_byte(&gen->code, 0x24);
+            buffer_write_byte(&gen->code, 0x10);
+            
+            emit_mov_ptr_rax_rbx(gen);  /* Store value */
+            
+            /* Update last_val */
+            emit_pop_rcx(gen);  /* rcx = target_index */
+            emit_pop_rax(gen);  /* rax = array_base */
+            emit_push_rax(gen);
+            emit_push_rcx(gen);
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x89);  /* mov [rax-8], rbx */
+            buffer_write_byte(&gen->code, 0x58);
+            buffer_write_byte(&gen->code, 0xF8);
+            
+            /* Update size = max(size, target+1) */
+            emit_pop_rcx(gen);  /* rcx = target */
+            emit_inc_rcx(gen);  /* rcx = target + 1 */
+            emit_pop_rax(gen);  /* rax = array_base */
+            
+            /* Load old size */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x8B);  /* mov rbx, [rax-16] */
+            buffer_write_byte(&gen->code, 0x58);
+            buffer_write_byte(&gen->code, 0xF0);
+            /* rbx = old_size, rcx = new_size */
+            
+            emit_cmp_rcx_rbx(gen);  /* cmp new, old */
+            int skip_size = codegen_create_label(gen);
+            size_t jle_pos2 = gen->code.size + 2;
+            buffer_write_byte(&gen->code, 0x0F);  /* jle */
+            buffer_write_byte(&gen->code, 0x8E);
+            buffer_write_u32(&gen->code, 0);
+            codegen_patch_label(gen, skip_size, jle_pos2);
+            
+            /* Update: [array_base - 16] = new_size */
+            emit_rex_w(gen);
+            buffer_write_byte(&gen->code, 0x89);  /* mov [rax-16], rcx */
+            buffer_write_byte(&gen->code, 0x48);
+            buffer_write_byte(&gen->code, 0xF0);
+            
+            codegen_set_label(gen, skip_size);
+            
+            /* Pop value */
+            emit_pop_rax(gen);
             
             return 0;
         }

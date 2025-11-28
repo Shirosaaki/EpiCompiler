@@ -4,5 +4,12 @@ Deschodt Eric() -> int
     nu[0][0] = 1
     nu[0][1] = 2
     nu[0][20] = 3
-    aer i in range(0, 21):
-        peric("nu[0][{i}] = {nu[0][i]}")
+    nu[0][30] = 4
+    nu[10] -> int[]
+    nu[10][0] = 5
+    nu[10][0] = 5
+    nu[10][1] = 6
+    nu[10][30] = 7
+    aer i in range(0, 11):
+        aer j in range(0, 31):
+            peric("nu[{i}][{j}] = {nu[i][j]}")
