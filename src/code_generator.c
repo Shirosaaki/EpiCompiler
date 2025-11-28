@@ -2008,6 +2008,39 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             return 0;
         }
 
+        case AST_UNARY_OP: {
+            /* Evaluate the operand first */
+            if (codegen_expression(gen, node->data.unary_op.operand) != 0) return -1;
+            
+            const char *op = node->data.unary_op.op;
+            
+            if (strcmp(op, "-") == 0) {
+                /* Negate: neg rax (REX.W 0xF7 /3) */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0xF7);
+                buffer_write_byte(&gen->code, 0xD8);  /* ModRM: 11 011 000 = /3 rax */
+            } else if (strcmp(op, "!") == 0) {
+                /* Logical NOT: test rax, rax; sete al; movzx rax, al */
+                /* test rax, rax */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x85);  /* test r/m64, r64 */
+                buffer_write_byte(&gen->code, 0xC0);  /* ModRM: rax, rax */
+                /* sete al (set al to 1 if ZF=1, i.e., rax was 0) */
+                buffer_write_byte(&gen->code, 0x0F);
+                buffer_write_byte(&gen->code, 0x94);
+                buffer_write_byte(&gen->code, 0xC0);  /* ModRM: al */
+                /* movzx rax, al */
+                emit_movzx_rax_al(gen);
+            } else if (strcmp(op, "+") == 0) {
+                /* Unary plus is a no-op, value already in rax */
+            } else {
+                gen->error_msg = strdup("Unsupported unary operator");
+                gen->error_line = node->line;
+                return -1;
+            }
+            return 0;
+        }
+
         default:
             gen->error_msg = strdup("Unsupported expression type");
             gen->error_line = node->line;
