@@ -245,11 +245,13 @@ void ast_free(ASTNode *node)
         case AST_STRUCT_ACCESS:
             free(node->data.struct_access.struct_name);
             free(node->data.struct_access.field_name);
+            ast_free(node->data.struct_access.array_index);
             break;
         case AST_STRUCT_ASSIGN:
             free(node->data.struct_assign.struct_name);
             free(node->data.struct_assign.field_name);
             ast_free(node->data.struct_assign.value);
+            ast_free(node->data.struct_assign.array_index);
             break;
         case AST_DEREF:
             ast_free(node->data.deref.operand);
@@ -419,7 +421,7 @@ static ASTNode *parse_primary(Parser *p)
             return node;
         }
         
-        /* Check if it's an array access: arr[index] */
+        /* Check if it's an array access: arr[index] or arr[index].field */
         if (match_operator(p, "[")) {
             advance(p);  /* consume '[' */
             ASTNode *index = parse_expression(p);
@@ -430,6 +432,49 @@ static ASTNode *parse_primary(Parser *p)
                 return NULL;
             }
             advance(p);  /* consume ']' */
+            
+            /* Check for struct field access after array index: arr[i].field */
+            if (match_operator(p, ".")) {
+                advance(p);  /* consume '.' */
+                if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+                    set_error(p, "Expected field name after '.'", current(p));
+                    free(name);
+                    ast_free(index);
+                    return NULL;
+                }
+                char *field_name = strdup(current(p)->lexeme);
+                advance(p);  /* consume field name */
+                
+                /* Handle chained field access: arr[i].field1.field2... */
+                while (match_operator(p, ".")) {
+                    advance(p);  /* consume '.' */
+                    if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+                        set_error(p, "Expected field name after '.'", current(p));
+                        free(name);
+                        free(field_name);
+                        ast_free(index);
+                        return NULL;
+                    }
+                    char *old_field = field_name;
+                    char *new_field = current(p)->lexeme;
+                    size_t new_len = strlen(old_field) + 1 + strlen(new_field) + 1;
+                    field_name = malloc(new_len);
+                    sprintf(field_name, "%s.%s", old_field, new_field);
+                    free(old_field);
+                    advance(p);  /* consume field name */
+                }
+                
+                /* Create a special struct access node that includes array info */
+                /* We'll encode array name and index in struct_name as "array[index]" format */
+                /* But for cleaner handling, we'll create a new AST node type or use existing ones */
+                /* For now, let's use struct access with array name encoded */
+                ASTNode *node = ast_create(AST_STRUCT_ACCESS, line, col);
+                /* Encode as "arrayname[INDEX_MARKER]" - we'll store index in a special way */
+                node->data.struct_access.struct_name = name;
+                node->data.struct_access.field_name = field_name;
+                node->data.struct_access.array_index = index;  /* Need to add this field to the struct */
+                return node;
+            }
             
             ASTNode *node = ast_create(AST_ARRAY_ACCESS, line, col);
             node->data.array_access.array_name = name;
@@ -442,6 +487,7 @@ static ASTNode *parse_primary(Parser *p)
             /* Create initial struct access node */
             ASTNode *result = ast_create(AST_STRUCT_ACCESS, line, col);
             result->data.struct_access.struct_name = name;
+            result->data.struct_access.array_index = NULL;  /* Not an array element access */
             
             advance(p);  /* consume '.' */
             if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
@@ -717,7 +763,7 @@ static ASTNode *parse_assignment(Parser *p)
     size_t line = t->line, col = t->column;
     advance(p);  /* consume identifier */
 
-    /* Check for array indexing: arr[index] = value */
+    /* Check for array indexing: arr[index] = value or arr[index].field = value */
     if (match_operator(p, "[")) {
         advance(p);  /* consume '[' */
         ASTNode *index = parse_expression(p);
@@ -728,6 +774,57 @@ static ASTNode *parse_assignment(Parser *p)
             return NULL;
         }
         advance(p);  /* consume ']' */
+        
+        /* Check for struct field access after array index: arr[i].field = value */
+        if (match_operator(p, ".")) {
+            advance(p);  /* consume '.' */
+            if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+                set_error(p, "Expected field name after '.'", current(p));
+                free(var_name);
+                ast_free(index);
+                return NULL;
+            }
+            char *field_name = strdup(current(p)->lexeme);
+            advance(p);  /* consume field name */
+            
+            /* Handle chained field access: arr[i].field1.field2... */
+            while (match_operator(p, ".")) {
+                advance(p);  /* consume '.' */
+                if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+                    set_error(p, "Expected field name after '.'", current(p));
+                    free(var_name);
+                    free(field_name);
+                    ast_free(index);
+                    return NULL;
+                }
+                char *old_field = field_name;
+                char *new_field = current(p)->lexeme;
+                size_t new_len = strlen(old_field) + 1 + strlen(new_field) + 1;
+                field_name = malloc(new_len);
+                sprintf(field_name, "%s.%s", old_field, new_field);
+                free(old_field);
+                advance(p);  /* consume field name */
+            }
+            
+            if (!match_operator(p, "=")) {
+                set_error(p, "Expected '=' after struct field", current(p));
+                free(var_name);
+                free(field_name);
+                ast_free(index);
+                return NULL;
+            }
+            advance(p);  /* consume '=' */
+            
+            ASTNode *value = parse_expression(p);
+            
+            /* Create struct assign with array index */
+            ASTNode *node = ast_create(AST_STRUCT_ASSIGN, line, col);
+            node->data.struct_assign.struct_name = var_name;
+            node->data.struct_assign.field_name = field_name;
+            node->data.struct_assign.value = value;
+            node->data.struct_assign.array_index = index;
+            return node;
+        }
         
         if (!match_operator(p, "=")) {
             set_error(p, "Expected '=' after array index", current(p));
@@ -816,6 +913,7 @@ static ASTNode *parse_struct_field_assignment(Parser *p)
     node->data.struct_assign.struct_name = struct_name;
     node->data.struct_assign.field_name = field_name;
     node->data.struct_assign.value = value;
+    node->data.struct_assign.array_index = NULL;  /* Not an array element access */
     return node;
 }
 

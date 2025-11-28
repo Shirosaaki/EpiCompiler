@@ -257,17 +257,19 @@ struct ASTNode {
             StructFieldList fields;
         } struct_def;
 
-        /* AST_STRUCT_ACCESS: struct.field */
+        /* AST_STRUCT_ACCESS: struct.field or arr[i].field */
         struct {
             char *struct_name;
             char *field_name;
+            ASTNode *array_index;  /* NULL if not array element, otherwise the index expression */
         } struct_access;
 
-        /* AST_STRUCT_ASSIGN: struct.field = value */
+        /* AST_STRUCT_ASSIGN: struct.field = value or arr[i].field = value */
         struct {
             char *struct_name;
             char *field_name;
             ASTNode *value;
+            ASTNode *array_index;  /* NULL if not array element, otherwise the index expression */
         } struct_assign;
     } data;
 };

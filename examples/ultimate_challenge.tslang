@@ -1,0 +1,997 @@
+desnote === ULTIMATE CHALLENGE TEST ===
+desnote The most comprehensive stress test for the EpiCompiler
+desnote Tests edge cases, deep nesting, complex recursion, and advanced features
+
+desnote === CONSTANTS ===
+cz MAX_DEPTH = 10 -> int
+cz EPSILON = 0.00001 -> float
+cz MAGIC_NUMBER = 42 -> int
+cz APP_NAME = "Ultimate Compiler Challenge" -> string
+cz VERSION = "2.0.0" -> string
+cz ARRAY_SIZE = 10 -> int
+
+desnote === MULTIPLE ENUMS ===
+desnum Priority:
+    Low
+    Medium
+    High
+    Critical
+    Emergency
+
+desnum DataType:
+    Integer
+    Float
+    String
+    Boolean
+    Array
+    Pointer
+    Struct
+
+desnum ErrorCode:
+    Success
+    InvalidInput
+    OutOfMemory
+    StackOverflow
+    NullPointer
+    IndexOutOfBounds
+    DivisionByZero
+
+desnote === COMPLEX STRUCTURES ===
+destruct Vector2D:
+    x -> int
+    y -> int
+
+destruct Vector3D:
+    x -> int
+    y -> int
+    z -> int
+
+destruct Rectangle:
+    x -> int
+    y -> int
+    width -> int
+    height -> int
+
+destruct Node:
+    value -> int
+    next -> int
+    prev -> int
+    depth -> int
+
+destruct Matrix:
+    rows -> int
+    cols -> int
+    data -> int
+
+destruct Person:
+    name -> string
+    age -> int
+    id -> int
+    active -> int
+
+destruct Employee:
+    name -> string
+    age -> int
+    salary -> int
+    department -> int
+    yearsWorked -> int
+    rating -> int
+
+destruct Company:
+    name -> string
+    employeeCount -> int
+    revenue -> int
+    founded -> int
+
+desnote === MATHEMATICAL FUNCTIONS ===
+
+desnote Power function using recursion
+Deschodt power(base -> int, exp -> int) -> int
+    erif (exp == 0):
+        deschodt 1
+    erif (exp == 1):
+        deschodt base
+    deschelse:
+        deschodt base * power(base, exp - 1)
+
+desnote Recursive GCD (Euclidean algorithm)
+Deschodt gcd(a -> int, b -> int) -> int
+    erif (b == 0):
+        deschodt a
+    deschelse:
+        deschodt gcd(b, a - (a / b) * b)
+
+desnote Recursive LCM using GCD
+Deschodt lcm(a -> int, b -> int) -> int
+    eric g = gcd(a, b) -> int
+    deschodt (a * b) / g
+
+desnote Sum of digits (recursive)
+Deschodt sumDigits(n -> int) -> int
+    erif (n < 10):
+        deschodt n
+    deschelse:
+        deschodt (n - (n / 10) * 10) + sumDigits(n / 10)
+
+desnote Count digits (recursive)
+Deschodt countDigits(n -> int) -> int
+    erif (n < 10):
+        deschodt 1
+    deschelse:
+        deschodt 1 + countDigits(n / 10)
+
+desnote Check if prime (helper)
+Deschodt isPrimeHelper(n -> int, divisor -> int) -> int
+    erif (divisor * divisor > n):
+        deschodt 1
+    erif (n - (n / divisor) * divisor == 0):
+        deschodt 0
+    deschelse:
+        deschodt isPrimeHelper(n, divisor + 1)
+
+desnote Check if prime
+Deschodt isPrime(n -> int) -> int
+    erif (n <= 1):
+        deschodt 0
+    erif (n <= 3):
+        deschodt 1
+    erif (n - (n / 2) * 2 == 0):
+        deschodt 0
+    deschelse:
+        deschodt isPrimeHelper(n, 3)
+
+desnote Nth prime number
+Deschodt nthPrime(n -> int) -> int
+    eric count = 0 -> int
+    eric candidate = 2 -> int
+    darius (count < n):
+        erif (isPrime(candidate) == 1):
+            count = count + 1
+            erif (count == n):
+                deschodt candidate
+        candidate = candidate + 1
+    deschodt candidate
+
+desnote Ackermann function (highly recursive)
+Deschodt ackermann(m -> int, n -> int) -> int
+    erif (m == 0):
+        deschodt n + 1
+    erif (n == 0):
+        deschodt ackermann(m - 1, 1)
+    deschelse:
+        deschodt ackermann(m - 1, ackermann(m, n - 1))
+
+desnote Collatz sequence length
+Deschodt collatzLength(n -> int) -> int
+    erif (n == 1):
+        deschodt 1
+    erif (n - (n / 2) * 2 == 0):
+        deschodt 1 + collatzLength(n / 2)
+    deschelse:
+        deschodt 1 + collatzLength(3 * n + 1)
+
+desnote === ARRAY FUNCTIONS ===
+
+desnote Bubble sort (in-place via pointers)
+Deschodt bubbleSort(arr -> int[], size -> int) -> void
+    aer i in range(0, size):
+        aer j in range(0, size - 1 - i):
+            erif (arr[j] > arr[j + 1]):
+                eric temp = arr[j] -> int
+                arr[j] = arr[j + 1]
+                arr[j + 1] = temp
+
+desnote Selection sort
+Deschodt selectionSort(arr -> int[], size -> int) -> void
+    aer i in range(0, size - 1):
+        eric minIdx = i -> int
+        aer j in range(i + 1, size):
+            erif (arr[j] < arr[minIdx]):
+                minIdx = j
+        erif (minIdx != i):
+            eric temp = arr[i] -> int
+            arr[i] = arr[minIdx]
+            arr[minIdx] = temp
+
+desnote Check if array is sorted
+Deschodt isSorted(arr -> int[], size -> int) -> int
+    aer i in range(0, size - 1):
+        erif (arr[i] > arr[i + 1]):
+            deschodt 0
+    deschodt 1
+
+desnote Reverse array
+Deschodt reverseArray(arr -> int[], size -> int) -> void
+    eric left = 0 -> int
+    eric right = size - 1 -> int
+    darius (left < right):
+        eric temp = arr[left] -> int
+        arr[left] = arr[right]
+        arr[right] = temp
+        left = left + 1
+        right = right - 1
+
+desnote Sum of array
+Deschodt sumArray(arr -> int[], size -> int) -> int
+    eric sum = 0 -> int
+    aer i in range(0, size):
+        sum = sum + arr[i]
+    deschodt sum
+
+desnote Product of array
+Deschodt productArray(arr -> int[], size -> int) -> int
+    eric prod = 1 -> int
+    aer i in range(0, size):
+        prod = prod * arr[i]
+    deschodt prod
+
+desnote Count occurrences
+Deschodt countOccurrences(arr -> int[], size -> int, target -> int) -> int
+    eric count = 0 -> int
+    aer i in range(0, size):
+        erif (arr[i] == target):
+            count = count + 1
+    deschodt count
+
+desnote Linear search
+Deschodt linearSearch(arr -> int[], size -> int, target -> int) -> int
+    aer i in range(0, size):
+        erif (arr[i] == target):
+            deschodt i
+    deschodt 0 - 1
+
+desnote Binary search (requires sorted array)
+Deschodt binarySearch(arr -> int[], size -> int, target -> int) -> int
+    eric left = 0 -> int
+    eric right = size - 1 -> int
+    darius (left <= right):
+        eric mid = (left + right) / 2 -> int
+        erif (arr[mid] == target):
+            deschodt mid
+        erif (arr[mid] < target):
+            left = mid + 1
+        deschelse:
+            right = mid - 1
+    deschodt 0 - 1
+
+desnote === POINTER FUNCTIONS ===
+
+desnote Swap two values
+Deschodt swap(a -> int*, b -> int*) -> void
+    eric temp = *a -> int
+    *a = *b
+    *b = temp
+
+desnote Triple a value
+Deschodt tripleValue(ptr -> int*) -> void
+    *ptr = *ptr * 3
+
+desnote Square a value
+Deschodt squareValue(ptr -> int*) -> void
+    *ptr = *ptr * *ptr
+
+desnote Add to value
+Deschodt addToValue(ptr -> int*, amount -> int) -> void
+    *ptr = *ptr + amount
+
+desnote Multiply value
+Deschodt multiplyValue(ptr -> int*, factor -> int) -> void
+    *ptr = *ptr * factor
+
+desnote === STRUCTURE FUNCTIONS ===
+
+desnote Vector operations
+Deschodt initVector2D(v -> Vector2D*, x -> int, y -> int) -> void
+    v.x = x
+    v.y = y
+
+Deschodt vector2DMagnitudeSquared(v -> Vector2D*) -> int
+    deschodt v.x * v.x + v.y * v.y
+
+Deschodt addVectors2D(result -> Vector2D*, a -> Vector2D*, b -> Vector2D*) -> void
+    result.x = a.x + b.x
+    result.y = a.y + b.y
+
+Deschodt scaleVector2D(v -> Vector2D*, scalar -> int) -> void
+    v.x = v.x * scalar
+    v.y = v.y * scalar
+
+Deschodt dotProduct2D(a -> Vector2D*, b -> Vector2D*) -> int
+    deschodt a.x * b.x + a.y * b.y
+
+desnote Rectangle operations
+Deschodt initRectangle(r -> Rectangle*, x -> int, y -> int, w -> int, h -> int) -> void
+    r.x = x
+    r.y = y
+    r.width = w
+    r.height = h
+
+Deschodt rectangleArea(r -> Rectangle*) -> int
+    deschodt r.width * r.height
+
+Deschodt rectanglePerimeter(r -> Rectangle*) -> int
+    deschodt 2 * (r.width + r.height)
+
+Deschodt moveRectangle(r -> Rectangle*, dx -> int, dy -> int) -> void
+    r.x = r.x + dx
+    r.y = r.y + dy
+
+desnote Employee operations
+Deschodt initEmployee(e -> Employee*, name -> string, age -> int, salary -> int) -> void
+    e.name = name
+    e.age = age
+    e.salary = salary
+    e.department = 0
+    e.yearsWorked = 0
+    e.rating = 5
+
+Deschodt giveRaise(e -> Employee*, percent -> int) -> void
+    eric raise = (e.salary * percent) / 100 -> int
+    e.salary = e.salary + raise
+    peric("  -> {e.name} got a {percent}% raise! New salary: {e.salary}")
+
+Deschodt promoteEmployee(e -> Employee*) -> void
+    e.department = e.department + 1
+    e.rating = e.rating + 1
+    e.salary = e.salary + 5000
+    peric("  -> {e.name} promoted to department {e.department}!")
+
+Deschodt incrementYears(e -> Employee*) -> void
+    e.yearsWorked = e.yearsWorked + 1
+
+desnote === UTILITY FUNCTIONS ===
+
+Deschodt absoluteValue(n -> int) -> int
+    erif (n < 0):
+        deschodt 0 - n
+    deschelse:
+        deschodt n
+
+Deschodt maxOfThree(a -> int, b -> int, c -> int) -> int
+    eric max = a -> int
+    erif (b > max):
+        max = b
+    erif (c > max):
+        max = c
+    deschodt max
+
+Deschodt minOfThree(a -> int, b -> int, c -> int) -> int
+    eric min = a -> int
+    erif (b < min):
+        min = b
+    erif (c < min):
+        min = c
+    deschodt min
+
+Deschodt clamp(value -> int, min -> int, max -> int) -> int
+    erif (value < min):
+        deschodt min
+    erif (value > max):
+        deschodt max
+    deschelse:
+        deschodt value
+
+desnote Print horizontal line
+Deschodt printLine(char -> string, count -> int) -> void
+    aer i in range(0, count):
+        peric("{char}")
+
+desnote Print priority name
+Deschodt printPriority(p -> int) -> void
+    erif (p == 0):
+        peric("Low")
+    erif (p == 1):
+        peric("Medium")
+    erif (p == 2):
+        peric("High")
+    erif (p == 3):
+        peric("Critical")
+    erif (p == 4):
+        peric("Emergency")
+
+desnote === MAIN PROGRAM ===
+Deschodt Eric() -> int
+    peric("╔══════════════════════════════════════════════════════════╗")
+    peric("║          ULTIMATE COMPILER CHALLENGE v{VERSION}            ║")
+    peric("║                  {APP_NAME}                   ║")
+    peric("╚══════════════════════════════════════════════════════════╝")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 1: DEEP NESTED CONDITIONALS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 1: Deep Nested Conditionals          ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric testVal = 42 -> int
+    peric("Testing value: {testVal}")
+    
+    erif (testVal > 0):
+        peric("  Level 1: Positive")
+        erif (testVal > 10):
+            peric("  Level 2: Greater than 10")
+            erif (testVal > 20):
+                peric("  Level 3: Greater than 20")
+                erif (testVal > 30):
+                    peric("  Level 4: Greater than 30")
+                    erif (testVal > 40):
+                        peric("  Level 5: Greater than 40")
+                        erif (testVal == 42):
+                            peric("  Level 6: Found the magic number!")
+                        deschelse:
+                            peric("  Level 6: Not the magic number")
+                    deschelse:
+                        peric("  Level 5: Between 30-40")
+                deschelse:
+                    peric("  Level 4: Between 20-30")
+            deschelse:
+                peric("  Level 3: Between 10-20")
+        deschelse:
+            peric("  Level 2: Between 0-10")
+    deschelse:
+        peric("  Level 1: Non-positive")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 2: COMPLEX ARITHMETIC CHAINS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 2: Complex Arithmetic Chains         ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric x = 5 -> int
+    eric y = 3 -> int
+    eric z = 7 -> int
+    
+    eric result1 = x + y * z -> int
+    eric result2 = (x + y) * z -> int
+    eric result3 = x * y + z * x -> int
+    eric result4 = (x + y + z) * (x - y) -> int
+    eric result5 = x * x + y * y + z * z -> int
+    
+    peric("x={x}, y={y}, z={z}")
+    peric("x + y * z = {result1}")
+    peric("(x + y) * z = {result2}")
+    peric("x * y + z * x = {result3}")
+    peric("(x + y + z) * (x - y) = {result4}")
+    peric("x² + y² + z² = {result5}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 3: ADVANCED RECURSION
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 3: Advanced Recursion                ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("Power calculations:")
+    aer i in range(0, 6):
+        eric p = power(2, i) -> int
+        peric("  2^{i} = {p}")
+    
+    peric("")
+    peric("GCD calculations:")
+    eric g1 = gcd(48, 18) -> int
+    eric g2 = gcd(100, 35) -> int
+    eric g3 = gcd(144, 60) -> int
+    peric("  gcd(48, 18) = {g1}")
+    peric("  gcd(100, 35) = {g2}")
+    peric("  gcd(144, 60) = {g3}")
+    
+    peric("")
+    peric("LCM calculations:")
+    eric l1 = lcm(4, 6) -> int
+    eric l2 = lcm(15, 20) -> int
+    peric("  lcm(4, 6) = {l1}")
+    peric("  lcm(15, 20) = {l2}")
+    
+    peric("")
+    peric("Sum of digits:")
+    eric s1 = sumDigits(12345) -> int
+    eric s2 = sumDigits(9999) -> int
+    peric("  sumDigits(12345) = {s1}")
+    peric("  sumDigits(9999) = {s2}")
+    
+    peric("")
+    peric("Count digits:")
+    eric c1 = countDigits(12345) -> int
+    eric c2 = countDigits(1000000) -> int
+    peric("  countDigits(12345) = {c1}")
+    peric("  countDigits(1000000) = {c2}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 4: PRIME NUMBERS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 4: Prime Number Tests                ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("Prime check for numbers 1-20:")
+    aer i in range(1, 21):
+        eric prime = isPrime(i) -> int
+        erif (prime == 1):
+            peric("  {i} is PRIME")
+    
+    peric("")
+    peric("First 10 prime numbers:")
+    aer i in range(1, 11):
+        eric p = nthPrime(i) -> int
+        peric("  Prime #{i}: {p}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 5: ACKERMANN FUNCTION (STRESS TEST)
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 5: Ackermann Function (Stress Test)  ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("Ackermann(m, n) - highly recursive:")
+    aer m in range(0, 4):
+        aer n in range(0, 4):
+            eric ack = ackermann(m, n) -> int
+            peric("  A({m},{n}) = {ack}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 6: COLLATZ CONJECTURE
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 6: Collatz Sequence Lengths          ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("Collatz sequence lengths for starting values:")
+    aer i in range(1, 16):
+        eric len = collatzLength(i) -> int
+        peric("  Starting at {i}: {len} steps")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 7: ARRAY OPERATIONS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 7: Array Operations                  ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric arr1 -> int[10]
+    arr1[0] = 64
+    arr1[1] = 34
+    arr1[2] = 25
+    arr1[3] = 12
+    arr1[4] = 22
+    arr1[5] = 11
+    arr1[6] = 90
+    arr1[7] = 45
+    arr1[8] = 33
+    arr1[9] = 77
+    
+    peric("Original array:")
+    aer i in range(0, 10):
+        peric("  arr[{i}] = {arr1[i]}")
+    
+    eric sum1 = sumArray(arr1, 10) -> int
+    peric("Sum of array: {sum1}")
+    
+    eric sorted1 = isSorted(arr1, 10) -> int
+    peric("Is sorted before: {sorted1}")
+    
+    peric("")
+    peric("Sorting with bubble sort...")
+    bubbleSort(arr1, 10)
+    
+    peric("Sorted array:")
+    aer i in range(0, 10):
+        peric("  arr[{i}] = {arr1[i]}")
+    
+    eric sorted2 = isSorted(arr1, 10) -> int
+    peric("Is sorted after: {sorted2}")
+    
+    peric("")
+    peric("Binary search tests:")
+    eric idx1 = binarySearch(arr1, 10, 45) -> int
+    eric idx2 = binarySearch(arr1, 10, 90) -> int
+    eric idx3 = binarySearch(arr1, 10, 100) -> int
+    peric("  Search for 45: index {idx1}")
+    peric("  Search for 90: index {idx2}")
+    peric("  Search for 100: index {idx3}")
+    
+    peric("")
+    peric("Reversing array...")
+    reverseArray(arr1, 10)
+    peric("Reversed array:")
+    aer i in range(0, 10):
+        peric("  arr[{i}] = {arr1[i]}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 8: SECOND ARRAY WITH SELECTION SORT
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 8: Selection Sort Test               ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric arr2 -> int[8]
+    arr2[0] = 99
+    arr2[1] = 23
+    arr2[2] = 56
+    arr2[3] = 11
+    arr2[4] = 78
+    arr2[5] = 34
+    arr2[6] = 67
+    arr2[7] = 45
+    
+    peric("Before selection sort:")
+    aer i in range(0, 8):
+        peric("  arr2[{i}] = {arr2[i]}")
+    
+    selectionSort(arr2, 8)
+    
+    peric("After selection sort:")
+    aer i in range(0, 8):
+        peric("  arr2[{i}] = {arr2[i]}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 9: POINTER OPERATIONS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 9: Advanced Pointer Operations       ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric val1 = 10 -> int
+    eric val2 = 20 -> int
+    
+    peric("Initial: val1={val1}, val2={val2}")
+    
+    swap(&val1, &val2)
+    peric("After swap: val1={val1}, val2={val2}")
+    
+    tripleValue(&val1)
+    peric("After tripling val1: {val1}")
+    
+    squareValue(&val2)
+    peric("After squaring val2: {val2}")
+    
+    addToValue(&val1, 50)
+    peric("After adding 50 to val1: {val1}")
+    
+    multiplyValue(&val2, 3)
+    peric("After multiplying val2 by 3: {val2}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 10: VECTOR OPERATIONS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 10: Vector Mathematics               ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric v1 -> Vector2D
+    eric v2 -> Vector2D
+    eric v3 -> Vector2D
+    
+    initVector2D(&v1, 3, 4)
+    initVector2D(&v2, 5, 12)
+    
+    peric("Vector v1: ({v1.x}, {v1.y})")
+    peric("Vector v2: ({v2.x}, {v2.y})")
+    
+    eric mag1 = vector2DMagnitudeSquared(&v1) -> int
+    eric mag2 = vector2DMagnitudeSquared(&v2) -> int
+    peric("v1 magnitude squared: {mag1}")
+    peric("v2 magnitude squared: {mag2}")
+    
+    addVectors2D(&v3, &v1, &v2)
+    peric("v1 + v2 = ({v3.x}, {v3.y})")
+    
+    eric dot = dotProduct2D(&v1, &v2) -> int
+    peric("v1 · v2 = {dot}")
+    
+    scaleVector2D(&v1, 3)
+    peric("v1 scaled by 3: ({v1.x}, {v1.y})")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 11: RECTANGLE OPERATIONS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 11: Rectangle Operations             ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric rect1 -> Rectangle
+    eric rect2 -> Rectangle
+    
+    initRectangle(&rect1, 10, 20, 30, 40)
+    initRectangle(&rect2, 0, 0, 100, 50)
+    
+    peric("Rectangle 1: pos({rect1.x},{rect1.y}), size({rect1.width}x{rect1.height})")
+    peric("Rectangle 2: pos({rect2.x},{rect2.y}), size({rect2.width}x{rect2.height})")
+    
+    eric area1 = rectangleArea(&rect1) -> int
+    eric area2 = rectangleArea(&rect2) -> int
+    peric("Area of rect1: {area1}")
+    peric("Area of rect2: {area2}")
+    
+    eric perim1 = rectanglePerimeter(&rect1) -> int
+    eric perim2 = rectanglePerimeter(&rect2) -> int
+    peric("Perimeter of rect1: {perim1}")
+    peric("Perimeter of rect2: {perim2}")
+    
+    moveRectangle(&rect1, 5, 10)
+    peric("After moving rect1 by (5,10): pos({rect1.x},{rect1.y})")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 12: EMPLOYEE MANAGEMENT
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 12: Employee Management System       ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric emp1 -> Employee
+    eric emp2 -> Employee
+    eric emp3 -> Employee
+    
+    initEmployee(&emp1, "Alice Johnson", 28, 50000)
+    initEmployee(&emp2, "Bob Smith", 35, 65000)
+    initEmployee(&emp3, "Carol Davis", 42, 80000)
+    
+    peric("Initial employees:")
+    peric("  {emp1.name}: Age {emp1.age}, Salary ${emp1.salary}")
+    peric("  {emp2.name}: Age {emp2.age}, Salary ${emp2.salary}")
+    peric("  {emp3.name}: Age {emp3.age}, Salary ${emp3.salary}")
+    
+    peric("")
+    peric("Giving raises:")
+    giveRaise(&emp1, 10)
+    giveRaise(&emp2, 15)
+    giveRaise(&emp3, 5)
+    
+    peric("")
+    peric("Promoting employees:")
+    promoteEmployee(&emp1)
+    promoteEmployee(&emp2)
+    
+    peric("")
+    peric("Adding years of service...")
+    aer i in range(0, 3):
+        incrementYears(&emp1)
+        incrementYears(&emp2)
+        incrementYears(&emp3)
+    
+    peric("Final employee status:")
+    peric("  {emp1.name}:")
+    peric("    Salary: ${emp1.salary}")
+    peric("    Department: {emp1.department}")
+    peric("    Years: {emp1.yearsWorked}")
+    peric("    Rating: {emp1.rating}")
+    peric("  {emp2.name}:")
+    peric("    Salary: ${emp2.salary}")
+    peric("    Department: {emp2.department}")
+    peric("    Years: {emp2.yearsWorked}")
+    peric("    Rating: {emp2.rating}")
+    peric("  {emp3.name}:")
+    peric("    Salary: ${emp3.salary}")
+    peric("    Department: {emp3.department}")
+    peric("    Years: {emp3.yearsWorked}")
+    peric("    Rating: {emp3.rating}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 13: ENUM USAGE
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 13: Enum Usage                       ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric priority1 = Low -> Priority
+    eric priority2 = Critical -> Priority
+    eric priority3 = Emergency -> Priority
+    
+    peric("Priority values:")
+    peric("  Low = {priority1}")
+    peric("  Critical = {priority2}")
+    peric("  Emergency = {priority3}")
+    
+    eric dataType1 = Integer -> DataType
+    eric dataType2 = Pointer -> DataType
+    eric dataType3 = Struct -> DataType
+    
+    peric("DataType values:")
+    peric("  Integer = {dataType1}")
+    peric("  Pointer = {dataType2}")
+    peric("  Struct = {dataType3}")
+    
+    eric err1 = Success -> ErrorCode
+    eric err2 = NullPointer -> ErrorCode
+    eric err3 = DivisionByZero -> ErrorCode
+    
+    peric("ErrorCode values:")
+    peric("  Success = {err1}")
+    peric("  NullPointer = {err2}")
+    peric("  DivisionByZero = {err3}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 14: TRIPLE NESTED LOOPS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 14: Triple Nested Loops              ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("3D coordinate combinations (2x2x2):")
+    eric totalCombos = 0 -> int
+    aer i in range(0, 2):
+        aer j in range(0, 2):
+            aer k in range(0, 2):
+                totalCombos = totalCombos + 1
+                eric sum = i + j + k -> int
+                peric("  ({i},{j},{k}) -> sum={sum}")
+    peric("Total combinations: {totalCombos}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 15: COMPLEX LOOP CONTROL
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 15: Complex Loop Control             ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("Finding multiples of 3 (skip 9, stop at 21):")
+    aer i in range(0, 30):
+        erif (i - (i / 3) * 3 != 0):
+            deschontinue
+        erif (i == 9):
+            peric("  Skipping {i}")
+            deschontinue
+        erif (i == 21):
+            peric("  Stopping at {i}")
+            deschreak
+        peric("  Multiple: {i}")
+    
+    peric("")
+    peric("Nested loop with early exit:")
+    eric found = 0 -> int
+    aer i in range(1, 10):
+        aer j in range(1, 10):
+            eric product = i * j -> int
+            erif (product == 35):
+                peric("  Found! {i} * {j} = {product}")
+                found = 1
+                deschreak
+        erif (found == 1):
+            deschreak
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 16: WHILE LOOP STRESS TEST
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 16: While Loop Stress Test           ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("Computing factorial using while loop:")
+    eric n = 7 -> int
+    eric fact = 1 -> int
+    eric i = 1 -> int
+    darius (i <= n):
+        fact = fact * i
+        peric("  {i}! partial = {fact}")
+        i = i + 1
+    peric("Final: {n}! = {fact}")
+    
+    peric("")
+    peric("Powers of 2 (while loop):")
+    eric power2 = 1 -> int
+    eric exp = 0 -> int
+    darius (power2 < 1000):
+        peric("  2^{exp} = {power2}")
+        power2 = power2 * 2
+        exp = exp + 1
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 17: UTILITY FUNCTIONS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 17: Utility Function Tests           ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric abs1 = absoluteValue(0 - 42) -> int
+    eric abs2 = absoluteValue(100) -> int
+    eric abs3 = absoluteValue(0 - 1) -> int
+    peric("absoluteValue(-42) = {abs1}")
+    peric("absoluteValue(100) = {abs2}")
+    peric("absoluteValue(-1) = {abs3}")
+    
+    eric max3 = maxOfThree(15, 42, 27) -> int
+    eric min3 = minOfThree(15, 42, 27) -> int
+    peric("maxOfThree(15, 42, 27) = {max3}")
+    peric("minOfThree(15, 42, 27) = {min3}")
+    
+    eric clamped1 = clamp(5, 0, 10) -> int
+    eric clamped2 = clamp(0 - 5, 0, 10) -> int
+    eric clamped3 = clamp(15, 0, 10) -> int
+    peric("clamp(5, 0, 10) = {clamped1}")
+    peric("clamp(-5, 0, 10) = {clamped2}")
+    peric("clamp(15, 0, 10) = {clamped3}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 18: MULTIPLE STRUCTURE INSTANCES
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 18: Multiple Structure Instances     ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric nodes -> Node[5]
+    
+    aer i in range(0, 5):
+        nodes[i].value = (i + 1) * 10
+        nodes[i].depth = i
+        nodes[i].next = i + 1
+        nodes[i].prev = i - 1
+    
+    peric("Linked list simulation:")
+    aer i in range(0, 5):
+        peric("  Node {i}: value={nodes[i].value}, prev={nodes[i].prev}, next={nodes[i].next}")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 19: COMPANY STRUCTURE
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 19: Company Structure Test           ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    eric company -> Company
+    company.name = "TechCorp Industries"
+    company.employeeCount = 500
+    company.revenue = 10000000
+    company.founded = 1995
+    
+    peric("Company Information:")
+    peric("  Name: {company.name}")
+    peric("  Employees: {company.employeeCount}")
+    peric("  Revenue: ${company.revenue}")
+    peric("  Founded: {company.founded}")
+    peric("  Years in business: 30")
+    peric("")
+
+    desnote ═══════════════════════════════════════════════════════════
+    desnote PART 20: FINAL STATISTICS
+    desnote ═══════════════════════════════════════════════════════════
+    peric("╔═══════════════════════════════════════════╗")
+    peric("║ PART 20: Final Statistics                 ║")
+    peric("╚═══════════════════════════════════════════╝")
+    
+    peric("Test Summary:")
+    peric("  ✓ Deep nested conditionals (6 levels)")
+    peric("  ✓ Complex arithmetic expressions")
+    peric("  ✓ Advanced recursion (power, GCD, LCM)")
+    peric("  ✓ Prime number calculations")
+    peric("  ✓ Ackermann function stress test")
+    peric("  ✓ Collatz conjecture sequences")
+    peric("  ✓ Array operations (sort, search, reverse)")
+    peric("  ✓ Selection sort implementation")
+    peric("  ✓ Pointer operations (swap, modify)")
+    peric("  ✓ Vector mathematics")
+    peric("  ✓ Rectangle geometry")
+    peric("  ✓ Employee management system")
+    peric("  ✓ Multiple enum types")
+    peric("  ✓ Triple nested loops")
+    peric("  ✓ Complex loop control (break/continue)")
+    peric("  ✓ While loop stress tests")
+    peric("  ✓ Utility functions")
+    peric("  ✓ Structure arrays")
+    peric("  ✓ Complex structure operations")
+    peric("")
+    
+    peric("╔══════════════════════════════════════════════════════════╗")
+    peric("║       ULTIMATE CHALLENGE COMPLETED SUCCESSFULLY!         ║")
+    peric("║                All tests passed!                         ║")
+    peric("╚══════════════════════════════════════════════════════════╝")
+
+    deschodt 0
