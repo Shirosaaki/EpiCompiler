@@ -539,15 +539,23 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                 }
             }
             if (is_binary) {
-                /* Special case: '*' can be a type suffix (int*, float*) or unary dereference (*ptr) */
+                /* Special case: '*' can be a type suffix (int*, float*, StructName*) or unary dereference (*ptr) */
                 if (strcmp(op, "*") == 0) {
                     int is_type_suffix = 0;
                     int is_unary_deref = 0;
-                    /* Check if it's a type suffix: int* or float* or string* or char* */
+                    /* Check if it's a type suffix: int* or float* or string* or char* or StructName* */
                     if (prev && prev->type == TOK_IDENTIFIER && prev->lexeme) {
-                        if (strcmp(prev->lexeme, "int") == 0 || strcmp(prev->lexeme, "float") == 0 ||
+                        /* Check if next token is ) or , or identifier (common in function params) */
+                        if (next && next->type == TOK_OPERATOR && next->lexeme &&
+                            (strcmp(next->lexeme, ")") == 0 || strcmp(next->lexeme, ",") == 0)) {
+                            /* It's a pointer type like StructName*, followed by ) or , */
+                            is_type_suffix = 1;
+                        } else if (next && next->type == TOK_IDENTIFIER) {
+                            /* It's a pointer type like StructName* varname */
+                            is_type_suffix = 1;
+                        } else if (strcmp(prev->lexeme, "int") == 0 || strcmp(prev->lexeme, "float") == 0 ||
                             strcmp(prev->lexeme, "string") == 0 || strcmp(prev->lexeme, "char") == 0) {
-                            /* It's a pointer type like int*, next can be ) or , or identifier */
+                            /* It's a known pointer type like int* */
                             is_type_suffix = 1;
                         }
                     }

@@ -1378,17 +1378,42 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
         }
 
         case AST_STRUCT_ACCESS: {
-            /* struct.field - read a field from struct */
+            /* struct.field - read a field from struct (or struct pointer), or enum access */
             StackVar *struct_var = stack_frame_find(&gen->stack, node->data.struct_access.struct_name);
+            
             if (!struct_var) {
+                /* Not a struct variable - might be enum access (EnumName.Member) */
+                /* Try to find as combined identifier */
+                char combined[512];
+                snprintf(combined, sizeof(combined), "%s.%s", 
+                         node->data.struct_access.struct_name,
+                         node->data.struct_access.field_name);
+                StackVar *enum_var = stack_frame_find(&gen->stack, combined);
+                if (enum_var) {
+                    emit_mov_rax_rbp_offset(gen, enum_var->stack_offset);
+                    return 0;
+                }
                 gen->error_msg = strdup("Undefined struct variable");
                 gen->error_line = node->line;
                 return -1;
             }
             
+            /* Check if it's a struct pointer or a direct struct */
+            int is_struct_ptr = (struct_var->type == TYPE_STRUCT_PTR);
+            
             /* Find struct definition using the struct variable's type name */
             StructDefInfo *struct_def = struct_def_table_find(&gen->struct_defs, struct_var->struct_name);
             if (!struct_def) {
+                /* Not a struct type - might be enum access pattern */
+                char combined[512];
+                snprintf(combined, sizeof(combined), "%s.%s", 
+                         node->data.struct_access.struct_name,
+                         node->data.struct_access.field_name);
+                StackVar *enum_var = stack_frame_find(&gen->stack, combined);
+                if (enum_var) {
+                    emit_mov_rax_rbp_offset(gen, enum_var->stack_offset);
+                    return 0;
+                }
                 gen->error_msg = strdup("Struct definition not found");
                 gen->error_line = node->line;
                 return -1;
@@ -1400,12 +1425,27 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
                 if (strcmp(struct_def->fields.items[i].name, node->data.struct_access.field_name) == 0) {
                     break;
                 }
-                /* Each field is 8 bytes on the stack */
-                field_offset -= 8;
+                /* Calculate offset: strings take 16 bytes, others take 8 bytes */
+                if (struct_def->fields.items[i].type == TYPE_STRING) {
+                    field_offset -= 16;
+                } else {
+                    field_offset -= 8;
+                }
             }
             
-            /* Load field value */
-            emit_mov_rax_rbp_offset(gen, struct_var->stack_offset + field_offset);
+            if (is_struct_ptr) {
+                /* Load the pointer (address of struct) */
+                emit_mov_rax_rbp_offset(gen, struct_var->stack_offset);
+                /* Load field from [rax + field_offset] - field_offset is negative, so add it */
+                /* mov rax, [rax + field_offset] */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x8B);  /* mov r64, [r64+disp32] */
+                buffer_write_byte(&gen->code, 0x80);  /* ModRM: [rax + disp32] -> rax */
+                buffer_write_u32(&gen->code, (uint32_t)field_offset);
+            } else {
+                /* Direct struct: Load field value from stack */
+                emit_mov_rax_rbp_offset(gen, struct_var->stack_offset + field_offset);
+            }
             return 0;
         }
 
@@ -1906,13 +1946,16 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
         }
 
         case AST_STRUCT_ASSIGN: {
-            /* struct.field = value */
+            /* struct.field = value (or struct_ptr.field = value) */
             StackVar *struct_var = stack_frame_find(&gen->stack, node->data.struct_assign.struct_name);
             if (!struct_var) {
                 gen->error_msg = strdup("Undefined struct variable");
                 gen->error_line = node->line;
                 return -1;
             }
+            
+            /* Check if it's a struct pointer or a direct struct */
+            int is_struct_ptr = (struct_var->type == TYPE_STRUCT_PTR);
             
             /* Find struct definition using the struct variable's type name */
             StructDefInfo *struct_def = struct_def_table_find(&gen->struct_defs, struct_var->struct_name);
@@ -1942,28 +1985,60 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             if (codegen_expression(gen, node->data.struct_assign.value) != 0)
                 return -1;
             
-            /* Store at struct_offset + field_offset */
-            if (field_type == TYPE_STRING) {
-                /* For strings, need to store address and length */
-                /* rax contains the address of the string data */
-                emit_mov_rbp_offset_rax(gen, struct_var->stack_offset + field_offset);
-                /* Now we need to store the length */
-                /* If the value is a string literal, get its length directly */
-                ASTNode *value_node = node->data.struct_assign.value;
-                size_t str_len = 0;
-                if (value_node->type == AST_STRING) {
-                    str_len = strlen(value_node->data.string.value);
-                } else if (value_node->type == AST_IDENTIFIER) {
-                    /* Look up the variable's string length */
-                    StackVar *src_var = stack_frame_find(&gen->stack, value_node->data.identifier.name);
-                    if (src_var && src_var->type == TYPE_STRING) {
-                        str_len = src_var->string_length;
+            if (is_struct_ptr) {
+                /* For struct pointer: store value at [pointer + field_offset] */
+                /* rax has the value to store, save it */
+                emit_push_rax(gen);
+                /* Load struct pointer */
+                emit_mov_rax_rbp_offset(gen, struct_var->stack_offset);
+                /* Move pointer to rbx */
+                emit_mov_rbx_rax(gen);
+                /* Restore value to rax */
+                emit_pop_rax(gen);
+                /* Store: mov [rbx + field_offset], rax */
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0x89);  /* mov [r64+disp32], r64 */
+                buffer_write_byte(&gen->code, 0x83);  /* ModRM: rax -> [rbx + disp32] */
+                buffer_write_u32(&gen->code, (uint32_t)field_offset);
+                
+                /* For strings, also store the length */
+                if (field_type == TYPE_STRING) {
+                    ASTNode *value_node = node->data.struct_assign.value;
+                    size_t str_len = 0;
+                    if (value_node->type == AST_STRING) {
+                        str_len = strlen(value_node->data.string.value);
                     }
+                    emit_mov_rax_imm64(gen, str_len);
+                    /* Store length at [rbx + field_offset - 8] */
+                    emit_rex_w(gen);
+                    buffer_write_byte(&gen->code, 0x89);
+                    buffer_write_byte(&gen->code, 0x83);
+                    buffer_write_u32(&gen->code, (uint32_t)(field_offset - 8));
                 }
-                emit_mov_rax_imm64(gen, str_len);
-                emit_mov_rbp_offset_rax(gen, struct_var->stack_offset + field_offset - 8);
             } else {
-                emit_mov_rbp_offset_rax(gen, struct_var->stack_offset + field_offset);
+                /* Direct struct: Store at struct_offset + field_offset */
+                if (field_type == TYPE_STRING) {
+                    /* For strings, need to store address and length */
+                    /* rax contains the address of the string data */
+                    emit_mov_rbp_offset_rax(gen, struct_var->stack_offset + field_offset);
+                    /* Now we need to store the length */
+                    /* If the value is a string literal, get its length directly */
+                    ASTNode *value_node = node->data.struct_assign.value;
+                    size_t str_len = 0;
+                    if (value_node->type == AST_STRING) {
+                        str_len = strlen(value_node->data.string.value);
+                    } else if (value_node->type == AST_IDENTIFIER) {
+                        /* Look up the variable's string length */
+                        StackVar *src_var = stack_frame_find(&gen->stack, value_node->data.identifier.name);
+                        if (src_var && src_var->type == TYPE_STRING) {
+                            str_len = src_var->string_length;
+                        }
+                    }
+                    emit_mov_rax_imm64(gen, str_len);
+                    emit_mov_rbp_offset_rax(gen, struct_var->stack_offset + field_offset - 8);
+                } else {
+                    emit_mov_rbp_offset_rax(gen, struct_var->stack_offset + field_offset);
+                }
             }
             return 0;
         }
@@ -2203,6 +2278,9 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                 
                                 StackVar *struct_var = stack_frame_find(&gen->stack, struct_name);
                                 if (struct_var) {
+                                    /* Check if it's a struct pointer */
+                                    int is_struct_ptr = (struct_var->type == TYPE_STRUCT_PTR);
+                                    
                                     /* Find struct definition using the struct variable's type */
                                     StructDefInfo *struct_def = struct_def_table_find(&gen->struct_defs, struct_var->struct_name);
                                     
@@ -2223,18 +2301,37 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                             }
                                         }
                                         
-                                        /* Load field value */
-                                        emit_mov_rax_rbp_offset(gen, struct_var->stack_offset + field_offset);
+                                        if (is_struct_ptr) {
+                                            /* Load the pointer (address of struct) */
+                                            emit_mov_rax_rbp_offset(gen, struct_var->stack_offset);
+                                            /* Load field from [rax + field_offset] */
+                                            emit_rex_w(gen);
+                                            buffer_write_byte(&gen->code, 0x8B);  /* mov r64, [r64+disp32] */
+                                            buffer_write_byte(&gen->code, 0x80);  /* ModRM: [rax + disp32] -> rax */
+                                            buffer_write_u32(&gen->code, (uint32_t)field_offset);
+                                        } else {
+                                            /* Direct struct: Load field value */
+                                            emit_mov_rax_rbp_offset(gen, struct_var->stack_offset + field_offset);
+                                        }
                                         
                                         /* Print based on field type */
                                         if (field_type == TYPE_STRING) {
-                                            /* rax has string address, now load length from field_offset - 8 into rdx */
+                                            /* rax has string address, now load length */
                                             /* Save string address */
                                             emit_push_rax(gen);
-                                            /* Load string length */
-                                            emit_mov_rax_rbp_offset(gen, struct_var->stack_offset + field_offset - 8);
+                                            if (is_struct_ptr) {
+                                                /* Load pointer again */
+                                                emit_mov_rax_rbp_offset(gen, struct_var->stack_offset);
+                                                /* Load length from [rax + field_offset - 8] */
+                                                emit_rex_w(gen);
+                                                buffer_write_byte(&gen->code, 0x8B);
+                                                buffer_write_byte(&gen->code, 0x80);
+                                                buffer_write_u32(&gen->code, (uint32_t)(field_offset - 8));
+                                            } else {
+                                                /* Load string length from stack */
+                                                emit_mov_rax_rbp_offset(gen, struct_var->stack_offset + field_offset - 8);
+                                            }
                                             /* Move length to rdx */
-                                            /* mov rdx, rax */
                                             emit_rex_w(gen);
                                             buffer_write_byte(&gen->code, 0x89);
                                             buffer_write_byte(&gen->code, 0xC2);  /* ModR/M: rax -> rdx */
@@ -2615,10 +2712,14 @@ static int codegen_function(CodeGenerator *gen, ASTNode *node)
     for (size_t i = 0; i < node->data.func_def.params.count; ++i) {
         DataType param_type = node->data.func_def.params.items[i].type;
         const char *param_name = node->data.func_def.params.items[i].name;
+        const char *struct_type_name = node->data.func_def.params.items[i].struct_type_name;
         
         /* Check if parameter is an array type - passed as pointer */
         int is_array_param = (param_type == TYPE_INT_ARRAY || param_type == TYPE_FLOAT_ARRAY ||
                               param_type == TYPE_STRING_ARRAY || param_type == TYPE_CHAR_ARRAY);
+        
+        /* Check if parameter is a struct pointer */
+        int is_struct_ptr_param = (param_type == TYPE_STRUCT_PTR);
         
         stack_frame_push_var(&gen->stack, param_name, param_type);
         StackVar *var = stack_frame_find(&gen->stack, param_name);
@@ -2627,6 +2728,11 @@ static int codegen_function(CodeGenerator *gen, ASTNode *node)
             /* For array parameters, mark as pointer array (passed by reference) */
             var->is_array = 1;
             var->is_pointer_array = 1;  /* This is a pointer to array data, not stack-allocated */
+        }
+        
+        if (is_struct_ptr_param && struct_type_name) {
+            /* For struct pointer parameters, store the struct type name */
+            var->struct_name = strdup(struct_type_name);
         }
         
         /* Parameters are pushed in reverse order, so first param is at [rbp+16] */

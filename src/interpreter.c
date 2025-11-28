@@ -562,7 +562,7 @@ static char *process_format_string(Interpreter *interp, const char *format)
                     }
                     free(arr_name);
                 } else if (strchr(expr, '.')) {
-                    /* Struct field access: struct.field */
+                    /* Struct field access: struct.field (or pointer->field) */
                     char *dot = strchr(expr, '.');
                     size_t struct_name_len = dot - expr;
                     char *struct_name = malloc(struct_name_len + 1);
@@ -571,10 +571,24 @@ static char *process_format_string(Interpreter *interp, const char *format)
                     char *field_name = dot + 1;
                     
                     Variable *var = scope_get_var(interp->current_scope, struct_name);
-                    if (var && var->value.type == VAL_STRUCT) {
-                        Value field_val = struct_get_field(var->value.data.struct_val, field_name);
-                        val_str = value_to_string(&field_val);
-                        value_free(&field_val);
+                    if (var) {
+                        if (var->value.type == VAL_STRUCT) {
+                            Value field_val = struct_get_field(var->value.data.struct_val, field_name);
+                            val_str = value_to_string(&field_val);
+                            value_free(&field_val);
+                        } else if (var->value.type == VAL_POINTER && var->value.data.ptr_val) {
+                            /* Pointer to struct */
+                            Variable *target = var->value.data.ptr_val;
+                            if (target->value.type == VAL_STRUCT) {
+                                Value field_val = struct_get_field(target->value.data.struct_val, field_name);
+                                val_str = value_to_string(&field_val);
+                                value_free(&field_val);
+                            } else {
+                                val_str = strdup("<undefined>");
+                            }
+                        } else {
+                            val_str = strdup("<undefined>");
+                        }
                     } else {
                         val_str = strdup("<undefined>");
                     }
@@ -846,18 +860,53 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
         }
 
         case AST_STRUCT_ACCESS: {
-            /* Access struct field: struct.field */
+            /* Access struct field: struct.field (or enum: EnumName.Member, or pointer->field) */
             const char *struct_name = node->data.struct_access.struct_name;
             const char *field_name = node->data.struct_access.field_name;
             
             Variable *var = scope_get_var(interp->current_scope, struct_name);
             if (!var) {
+                /* Try as combined identifier (enum access: EnumName.Member) */
+                char combined[512];
+                snprintf(combined, sizeof(combined), "%s.%s", struct_name, field_name);
+                Variable *enum_var = scope_get_var(interp->current_scope, combined);
+                if (enum_var) {
+                    Value v = enum_var->value;
+                    if (v.type == VAL_STRING && v.data.string_val) {
+                        v.data.string_val = strdup(enum_var->value.data.string_val);
+                    }
+                    return v;
+                }
                 char msg[256];
-                snprintf(msg, sizeof(msg), "Undefined struct variable '%s'", struct_name);
+                snprintf(msg, sizeof(msg), "Undefined variable '%s'", struct_name);
                 set_runtime_error(interp, msg, node->line);
                 return value_create_void();
             }
+            
+            /* Check if it's a pointer to struct */
+            if (var->value.type == VAL_POINTER) {
+                Variable *target = var->value.data.ptr_val;
+                if (target && target->value.type == VAL_STRUCT) {
+                    return struct_get_field(target->value.data.struct_val, field_name);
+                }
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' pointer does not point to a struct", struct_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            
             if (var->value.type != VAL_STRUCT) {
+                /* Not a struct - try as combined identifier */
+                char combined[512];
+                snprintf(combined, sizeof(combined), "%s.%s", struct_name, field_name);
+                Variable *enum_var = scope_get_var(interp->current_scope, combined);
+                if (enum_var) {
+                    Value v = enum_var->value;
+                    if (v.type == VAL_STRING && v.data.string_val) {
+                        v.data.string_val = strdup(enum_var->value.data.string_val);
+                    }
+                    return v;
+                }
                 char msg[256];
                 snprintf(msg, sizeof(msg), "'%s' is not a struct", struct_name);
                 set_runtime_error(interp, msg, node->line);
@@ -983,7 +1032,7 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
         }
 
         case AST_STRUCT_ASSIGN: {
-            /* Struct field assignment: struct.field = value */
+            /* Struct field assignment: struct.field = value (or struct_ptr.field = value) */
             const char *struct_name = node->data.struct_assign.struct_name;
             const char *field_name = node->data.struct_assign.field_name;
             
@@ -994,6 +1043,21 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                 set_runtime_error(interp, msg, node->line);
                 return value_create_void();
             }
+            
+            /* Check if it's a pointer to struct */
+            if (var->value.type == VAL_POINTER) {
+                Variable *target = var->value.data.ptr_val;
+                if (target && target->value.type == VAL_STRUCT) {
+                    Value val = eval_expression(interp, node->data.struct_assign.value);
+                    struct_set_field(target->value.data.struct_val, field_name, val);
+                    return value_create_void();
+                }
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' pointer does not point to a struct", struct_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            
             if (var->value.type != VAL_STRUCT) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "'%s' is not a struct", struct_name);

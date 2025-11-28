@@ -51,6 +51,7 @@ void param_list_free(FuncParamList *list)
 {
     for (size_t i = 0; i < list->count; ++i) {
         free(list->items[i].name);
+        free(list->items[i].struct_type_name);
     }
     free(list->items);
     list->items = NULL;
@@ -436,24 +437,21 @@ static ASTNode *parse_primary(Parser *p)
             return node;
         }
 
-        /* Check for enum member access: EnumName.Member */
+        /* Check for struct field access or enum member access: name.field */
         if (match_operator(p, ".")) {
             advance(p);  /* consume '.' */
             if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
-                set_error(p, "Expected member name after '.'", current(p));
+                set_error(p, "Expected field name after '.'", current(p));
                 free(name);
                 return NULL;
             }
-            /* Combine into EnumName.Member identifier */
-            char *member = current(p)->lexeme;
-            size_t full_len = strlen(name) + 1 + strlen(member) + 1;
-            char *full_name = malloc(full_len);
-            snprintf(full_name, full_len, "%s.%s", name, member);
-            free(name);
-            advance(p);  /* consume member name */
+            char *field_name = strdup(current(p)->lexeme);
+            advance(p);  /* consume field name */
             
-            ASTNode *node = ast_create(AST_IDENTIFIER, line, col);
-            node->data.identifier.name = full_name;
+            /* Create struct access node */
+            ASTNode *node = ast_create(AST_STRUCT_ACCESS, line, col);
+            node->data.struct_access.struct_name = name;
+            node->data.struct_access.field_name = field_name;
             return node;
         }
 
@@ -1364,6 +1362,7 @@ static ASTNode *parse_function(Parser *p)
         FuncParam param;
         param.name = strdup(current(p)->lexeme);
         param.type = TYPE_UNKNOWN;
+        param.struct_type_name = NULL;
         advance(p);
 
         /* Optional type annotation */
@@ -1390,9 +1389,18 @@ static ASTNode *parse_function(Parser *p)
                     char *ptr_type = malloc(strlen(type_str) + 2);
                     sprintf(ptr_type, "%s*", type_str);
                     param.type = str_to_datatype(ptr_type);
+                    /* If TYPE_UNKNOWN, it's a struct pointer */
+                    if (param.type == TYPE_UNKNOWN) {
+                        param.type = TYPE_STRUCT_PTR;
+                        param.struct_type_name = strdup(type_str);
+                    }
                     free(ptr_type);
                 } else {
                     param.type = str_to_datatype(type_str);
+                    /* If TYPE_UNKNOWN, it might be a struct type */
+                    if (param.type == TYPE_UNKNOWN) {
+                        param.struct_type_name = strdup(type_str);
+                    }
                 }
                 free(type_str);
             }

@@ -62,6 +62,7 @@ typedef enum DataType {
     TYPE_STRING_PTR,       /* string* */
     TYPE_CHAR_PTR,         /* char* */
     TYPE_VOID_PTR,         /* void* */
+    TYPE_STRUCT_PTR,       /* StructName* */
     TYPE_UNKNOWN
 } DataType;
 
@@ -90,6 +91,7 @@ typedef struct StructFieldList {
 typedef struct FuncParam {
     char *name;
     DataType type;
+    char *struct_type_name;  /* For struct and struct pointer types */
 } FuncParam;
 
 typedef struct FuncParamList {

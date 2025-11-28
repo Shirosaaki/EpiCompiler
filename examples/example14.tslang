@@ -1,6 +1,6 @@
 destruct Voiture:
-    char* marque
-    int vitesse
+    marque -> string
+    vitesse -> int
 
 Deschodt accelerate(v -> Voiture*, bonus -> int) -> void
     v.vitesse = v.vitesse + bonus
