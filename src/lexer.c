@@ -279,12 +279,13 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                         }
                         size_t s = look + 1;
                         int has_content = 0;
-                        while (src[s] && src[s] != '\n') {
-                            if (!isspace((unsigned char)src[s])) {
-                                if (src[s] == ')') break;
+                        int paren_depth = 1;
+                        while (src[s] && src[s] != '\n' && paren_depth > 0) {
+                            if (src[s] == '(') paren_depth++;
+                            else if (src[s] == ')') paren_depth--;
+                            if (paren_depth > 0 && !isspace((unsigned char)src[s])) {
                                 has_content = 1;
                             }
-                            if (src[s] == ')') break;
                             ++s;
                         }
                         if (!has_content) {
@@ -292,8 +293,15 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
                             if (out_err) *out_err = lex_error_create("Empty condition in parentheses for 'darius'/'erif'", line, startcol);
                             return -1;
                         }
-                        size_t close = look + 1; int have_close = 0;
-                        while (src[close] && src[close] != '\n') { if (src[close] == ')') { have_close = 1; break; } ++close; }
+                        size_t close = look + 1; int have_close = 0; paren_depth = 1;
+                        while (src[close] && src[close] != '\n') {
+                            if (src[close] == '(') paren_depth++;
+                            else if (src[close] == ')') {
+                                paren_depth--;
+                                if (paren_depth == 0) { have_close = 1; break; }
+                            }
+                            ++close;
+                        }
                         if (!have_close) {
                             free(lex); free(src);
                             if (out_err) *out_err = lex_error_create("Unclosed condition parentheses for 'darius'/'erif'", line, startcol);
@@ -389,7 +397,7 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
 
         if (c == '"') {
             size_t startcol = col;
-            ++i; ++col; size_t start = i;
+            ++i; ++col;
             char *buf = malloc(1);
             buf[0] = '\0';  /* Initialize empty string */
             size_t blen = 0;
@@ -496,9 +504,9 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
 
     Token t_eof = token_create(TOK_EOF, strdup(""), line, col);
     token_list_push(out_tokens, t_eof);
-    {
+    /*{
         auto_prev_next: ;
-    }
+    }*/
     {
         size_t n = out_tokens->count;
         for (size_t idx = 0; idx < n; ++idx) {

@@ -1,0 +1,308 @@
+desnote === FINAL BOSS TEST ===
+desnote Combines all language features in one comprehensive program
+
+desnote === CONSTANTS & ENUMS ===
+cz MAX_STUDENTS = 5 -> int
+cz SCHOOL_NAME = "EpiTech Academy" -> string
+cz PI = 3.14159 -> float
+
+desnum Status:
+    Inactive
+    Active
+    Graduated
+
+desnum Grade:
+    Freshman
+    Sophomore
+    Junior
+    Senior
+
+desnote === STRUCTURES ===
+destruct Student:
+    name -> string
+    age -> int
+    grade -> int
+    score -> int
+    status -> int
+
+destruct Classroom:
+    name -> string
+    capacity -> int
+    studentCount -> int
+
+desnote === UTILITY FUNCTIONS ===
+
+desnote Recursive factorial calculation
+Deschodt factorial(n -> int) -> int
+    erif (n <= 1):
+        deschodt 1
+    deschelse:
+        deschodt n * factorial(n - 1)
+
+desnote Recursive fibonacci
+Deschodt fibonacci(n -> int) -> int
+    erif (n <= 0):
+        deschodt 0
+    erif (n == 1):
+        deschodt 1
+    deschelse:
+        deschodt fibonacci(n - 1) + fibonacci(n - 2)
+
+desnote Simple addition function
+Deschodt add(a -> int, b -> int) -> int
+    deschodt a + b
+
+desnote Calculate average from array
+Deschodt calculateAverage(scores -> int[], count -> int) -> int
+    eric total = 0 -> int
+    aer i in range(0, count):
+        total = total + scores[i]
+    deschodt total / count
+
+desnote Find maximum in array
+Deschodt findMax(arr -> int[], size -> int) -> int
+    eric max = arr[0] -> int
+    aer i in range(1, size):
+        erif (arr[i] > max):
+            max = arr[i]
+    deschodt max
+
+desnote Find minimum in array
+Deschodt findMin(arr -> int[], size -> int) -> int
+    eric min = arr[0] -> int
+    aer i in range(1, size):
+        erif (arr[i] < min):
+            min = arr[i]
+    deschodt min
+
+desnote Pointer function - increment value
+Deschodt increment(ptr -> int*) -> void
+    *ptr = *ptr + 1
+
+desnote Pointer function - double value
+Deschodt doubleValue(ptr -> int*) -> void
+    *ptr = *ptr * 2
+
+desnote Function with structure pointer
+Deschodt promoteStudent(s -> Student*) -> void
+    s.grade = s.grade + 1
+    s.score = s.score + 10
+    peric("  -> {s.name} promoted! New grade: {s.grade}, Score: {s.score}")
+
+desnote Check if student passed
+Deschodt hasPassed(score -> int) -> int
+    erif (score >= 60):
+        deschodt 1
+    deschelse:
+        deschodt 0
+
+desnote Get grade name
+Deschodt printGradeName(grade -> int) -> void
+    erif (grade == 0):
+        peric("    Grade: Freshman")
+    erif (grade == 1):
+        peric("    Grade: Sophomore")
+    erif (grade == 2):
+        peric("    Grade: Junior")
+    erif (grade == 3):
+        peric("    Grade: Senior")
+    erif (grade >= 4):
+        peric("    Grade: Graduated!")
+
+desnote === MAIN PROGRAM ===
+Deschodt Eric() -> int
+    peric("========================================")
+    peric("   WELCOME TO {SCHOOL_NAME}")
+    peric("========================================")
+    peric("")
+
+    desnote --- Section 1: Basic Variables ---
+    peric("--- Section 1: Variables & Constants ---")
+    eric year = 2025 -> int
+    eric semester = "Fall" -> string
+    peric("Current Year: {year}")
+    peric("Semester: {semester}")
+    peric("Max Students Allowed: {MAX_STUDENTS}")
+    peric("PI Value: {PI}")
+    peric("")
+
+    desnote --- Section 2: Arithmetic Operations ---
+    peric("--- Section 2: Arithmetic Operations ---")
+    eric a = 15 -> int
+    eric b = 7 -> int
+    eric sum = a + b -> int
+    eric diff = a - b -> int
+    eric prod = a * b -> int
+    eric quot = a / b -> int
+    peric("{a} + {b} = {sum}")
+    peric("{a} - {b} = {diff}")
+    peric("{a} * {b} = {prod}")
+    peric("{a} / {b} = {quot}")
+    peric("")
+
+    desnote --- Section 3: Function Calls ---
+    peric("--- Section 3: Function Calls ---")
+    eric result = add(25, 17) -> int
+    peric("add(25, 17) = {result}")
+    eric fact5 = factorial(5) -> int
+    peric("factorial(5) = {fact5}")
+    eric fib7 = fibonacci(7) -> int
+    peric("fibonacci(7) = {fib7}")
+    peric("")
+
+    desnote --- Section 4: Arrays ---
+    peric("--- Section 4: Arrays ---")
+    eric scores -> int[5]
+    scores[0] = 85
+    scores[1] = 92
+    scores[2] = 78
+    scores[3] = 95
+    scores[4] = 88
+    peric("Student Scores:")
+    aer i in range(0, 5):
+        peric("  Student {i}: {scores[i]}")
+    eric avg = calculateAverage(scores, 5) -> int
+    eric maxScore = findMax(scores, 5) -> int
+    eric minScore = findMin(scores, 5) -> int
+    peric("Average: {avg}")
+    peric("Highest: {maxScore}")
+    peric("Lowest: {minScore}")
+    peric("")
+
+    desnote --- Section 5: Conditionals ---
+    peric("--- Section 5: Conditionals ---")
+    eric testScore = 75 -> int
+    peric("Testing score: {testScore}")
+    erif (testScore >= 90):
+        peric("  Result: Excellent!")
+    deschelse:
+        erif (testScore >= 80):
+            peric("  Result: Good!")
+        deschelse:
+            erif (testScore >= 70):
+                peric("  Result: Satisfactory")
+            deschelse:
+                erif (testScore >= 60):
+                    peric("  Result: Passed")
+                deschelse:
+                    peric("  Result: Failed")
+    peric("")
+
+    desnote --- Section 6: Loops with break/continue ---
+    peric("--- Section 6: Loops with break/continue ---")
+    peric("Counting (skip 3, stop at 7):")
+    aer i in range(0, 10):
+        erif (i == 3):
+            deschontinue
+        erif (i == 7):
+            deschreak
+        peric("  Count: {i}")
+    peric("")
+
+    desnote --- Section 7: While Loop ---
+    peric("--- Section 7: While Loop (darius) ---")
+    eric counter = 1 -> int
+    eric total = 0 -> int
+    darius (counter <= 5):
+        total = total + counter
+        peric("  Adding {counter}, Total: {total}")
+        counter = counter + 1
+    peric("Final sum 1+2+3+4+5 = {total}")
+    peric("")
+
+    desnote --- Section 8: Structures ---
+    peric("--- Section 8: Structures ---")
+    eric student1 -> Student
+    student1.name = "Alice"
+    student1.age = 20
+    student1.grade = 1
+    student1.score = 85
+    student1.status = 1
+
+    eric student2 -> Student
+    student2.name = "Bob"
+    student2.age = 21
+    student2.grade = 2
+    student2.score = 72
+    student2.status = 1
+
+    peric("Student 1: {student1.name}")
+    peric("  Age: {student1.age}")
+    printGradeName(student1.grade)
+    peric("  Score: {student1.score}")
+
+    peric("Student 2: {student2.name}")
+    peric("  Age: {student2.age}")
+    printGradeName(student2.grade)
+    peric("  Score: {student2.score}")
+    peric("")
+
+    desnote --- Section 9: Pointers ---
+    peric("--- Section 9: Pointers ---")
+    eric value = 10 -> int
+    peric("Initial value: {value}")
+    increment(&value)
+    peric("After increment: {value}")
+    doubleValue(&value)
+    peric("After doubling: {value}")
+    peric("")
+
+    desnote --- Section 10: Structure Pointers ---
+    peric("--- Section 10: Structure Pointers ---")
+    peric("Promoting students...")
+    promoteStudent(&student1)
+    promoteStudent(&student2)
+    peric("")
+
+    desnote --- Section 11: Enums ---
+    peric("--- Section 11: Enums ---")
+    eric currentStatus = Active -> Status
+    eric currentGrade = Junior -> Grade
+    peric("Status code (Active): {currentStatus}")
+    peric("Grade code (Junior): {currentGrade}")
+    peric("")
+
+    desnote --- Section 12: Nested Loops ---
+    peric("--- Section 12: Nested Loops ---")
+    peric("Multiplication table (1-3):")
+    aer i in range(1, 4):
+        aer j in range(1, 4):
+            eric product = i * j -> int
+            peric("  {i} x {j} = {product}")
+    peric("")
+
+    desnote --- Section 13: Complex Recursion ---
+    peric("--- Section 13: Fibonacci Sequence ---")
+    peric("First 10 Fibonacci numbers:")
+    aer i in range(0, 10):
+        eric fib = fibonacci(i) -> int
+        peric("  fib({i}) = {fib}")
+    peric("")
+
+    desnote --- Section 14: Final Statistics ---
+    peric("--- Section 14: Final Statistics ---")
+    eric passCount = 0 -> int
+    aer i in range(0, 5):
+        erif (hasPassed(scores[i]) == 1):
+            passCount = passCount + 1
+    peric("Students who passed: {passCount} out of 5")
+    peric("")
+
+    desnote --- Section 15: Classroom Structure ---
+    peric("--- Section 15: Classroom Info ---")
+    eric classroom -> Classroom
+    classroom.name = "Room 42"
+    classroom.capacity = 30
+    classroom.studentCount = 25
+    peric("Classroom: {classroom.name}")
+    peric("Capacity: {classroom.capacity}")
+    peric("Current Students: {classroom.studentCount}")
+    peric("")
+
+    peric("========================================")
+    peric("   FINAL BOSS TEST COMPLETED!")
+    peric("========================================")
+
+    deschodt 0
+
+desnote Expected comprehensive output testing all language features

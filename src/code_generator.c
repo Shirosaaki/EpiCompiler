@@ -240,6 +240,7 @@ int stack_frame_push_array(StackFrame *sf, const char *name, DataType type, size
     sf->items[sf->count].name = strdup(name);
     sf->items[sf->count].stack_offset = array_base;  /* Points to base of array */
     sf->items[sf->count].type = type;
+    sf->items[sf->count].struct_name = NULL;
     sf->items[sf->count].string_data_offset = 0;
     sf->items[sf->count].string_length = 0;
     sf->items[sf->count].is_array = 1;
@@ -265,6 +266,7 @@ void stack_frame_clear(StackFrame *sf)
 {
     for (size_t i = 0; i < sf->count; ++i) {
         free(sf->items[i].name);
+        free(sf->items[i].struct_name);
     }
     sf->count = 0;
     sf->current_offset = 0;
@@ -307,7 +309,8 @@ int func_table_add(FunctionTable *ft, const char *name, size_t offset,
     param_list_init(&ft->items[ft->count].params);
     if (params) {
         for (size_t i = 0; i < params->count; ++i) {
-            FuncParam p = {strdup(params->items[i].name), params->items[i].type};
+            FuncParam p = {strdup(params->items[i].name), params->items[i].type, 
+                          params->items[i].struct_type_name ? strdup(params->items[i].struct_type_name) : NULL};
             param_list_push(&ft->items[ft->count].params, p);
         }
     }
@@ -431,6 +434,7 @@ static size_t calc_struct_size(StructDefTable *sdt, StructDefInfo *struct_def)
 }
 
 /* Helper function to calculate field offset within a struct (for nested access) */
+__attribute__((unused))
 static int calc_field_offset(StructDefTable *sdt, StructDefInfo *struct_def, 
                              const char *field_path, DataType *out_type)
 {
@@ -638,6 +642,7 @@ static void emit_mov_rsi_string_offset(CodeGenerator *gen, size_t str_offset)
 }
 
 /* mov rdi, imm64 */
+__attribute__((unused))
 static void emit_mov_rdi_imm64(CodeGenerator *gen, uint64_t val)
 {
     emit_rex_w(gen);
@@ -996,6 +1001,7 @@ static void emit_je_rel32(CodeGenerator *gen, int32_t rel)
 }
 
 /* jne rel32 */
+__attribute__((unused))
 static void emit_jne_rel32(CodeGenerator *gen, int32_t rel)
 {
     buffer_write_byte(&gen->code, 0x0F);
@@ -1004,6 +1010,7 @@ static void emit_jne_rel32(CodeGenerator *gen, int32_t rel)
 }
 
 /* jl rel32 - jump if less (signed) */
+__attribute__((unused))
 static void emit_jl_rel32(CodeGenerator *gen, int32_t rel)
 {
     buffer_write_byte(&gen->code, 0x0F);
@@ -1012,6 +1019,7 @@ static void emit_jl_rel32(CodeGenerator *gen, int32_t rel)
 }
 
 /* jle rel32 - jump if less or equal (signed) */
+__attribute__((unused))
 static void emit_jle_rel32(CodeGenerator *gen, int32_t rel)
 {
     buffer_write_byte(&gen->code, 0x0F);
@@ -1319,6 +1327,7 @@ static void emit_print_string_offset(CodeGenerator *gen, size_t len)
 }
 
 /* ========== emit_print_string_with_rdx_len: Print string at address in rax, length in rdx ========== */
+__attribute__((unused))
 static void emit_print_string_with_rdx_len(CodeGenerator *gen)
 {
     /* rax contains the string address, rdx contains the length */
@@ -1423,6 +1432,7 @@ static void emit_print_string_compute_len(CodeGenerator *gen)
 
 /* ========== Emit sys_write (for print) ========== */
 
+__attribute__((unused))
 static void emit_sys_write(CodeGenerator *gen, uint64_t str_addr, size_t len)
 {
     /* sys_write: rax=1, rdi=fd(1=stdout), rsi=buf, rdx=len */
@@ -2442,27 +2452,39 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                     call_node->data.func_call.name = func_name;
                                     ast_list_init(&call_node->data.func_call.args);
                                     
-                                    /* Parse argument */
+                                    /* Parse multiple comma-separated arguments */
                                     size_t args_len = args_end - args_start;
                                     if (args_len > 0) {
-                                        char *arg_expr = malloc(args_len + 1);
-                                        memcpy(arg_expr, args_start, args_len);
-                                        arg_expr[args_len] = '\0';
+                                        char *args_copy = malloc(args_len + 1);
+                                        memcpy(args_copy, args_start, args_len);
+                                        args_copy[args_len] = '\0';
                                         
-                                        /* Check if arg is a variable or number */
-                                        StackVar *arg_var = stack_frame_find(&gen->stack, arg_expr);
-                                        ASTNode *arg_node;
-                                        if (arg_var) {
-                                            arg_node = ast_create(AST_IDENTIFIER, 0, 0);
-                                            arg_node->data.identifier.name = strdup(arg_expr);
-                                        } else {
-                                            /* Try as number */
-                                            arg_node = ast_create(AST_NUMBER, 0, 0);
-                                            arg_node->data.number.value = atof(arg_expr);
-                                            arg_node->data.number.is_float = (strchr(arg_expr, '.') != NULL);
+                                        /* Split by comma */
+                                        char *saveptr;
+                                        char *arg_token = strtok_r(args_copy, ",", &saveptr);
+                                        while (arg_token) {
+                                            /* Trim whitespace */
+                                            while (*arg_token == ' ') arg_token++;
+                                            char *end = arg_token + strlen(arg_token) - 1;
+                                            while (end > arg_token && *end == ' ') { *end = '\0'; end--; }
+                                            
+                                            /* Check if arg is a variable or number */
+                                            StackVar *arg_var = stack_frame_find(&gen->stack, arg_token);
+                                            ASTNode *arg_node;
+                                            if (arg_var) {
+                                                arg_node = ast_create(AST_IDENTIFIER, 0, 0);
+                                                arg_node->data.identifier.name = strdup(arg_token);
+                                            } else {
+                                                /* Try as number */
+                                                arg_node = ast_create(AST_NUMBER, 0, 0);
+                                                arg_node->data.number.value = atof(arg_token);
+                                                arg_node->data.number.is_float = (strchr(arg_token, '.') != NULL);
+                                            }
+                                            ast_list_push(&call_node->data.func_call.args, arg_node);
+                                            
+                                            arg_token = strtok_r(NULL, ",", &saveptr);
                                         }
-                                        ast_list_push(&call_node->data.func_call.args, arg_node);
-                                        free(arg_expr);
+                                        free(args_copy);
                                     }
                                     
                                     /* Compile and execute the function call */
@@ -2568,7 +2590,6 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                     StructDefInfo *current_struct = struct_def_table_find(&gen->struct_defs, struct_var->struct_name);
                                     int total_offset = 0;
                                     DataType final_field_type = TYPE_UNKNOWN;
-                                    int have_loaded_ptr = 0;
                                     
                                     /* Parse the field path (e.g., "stats.vie") */
                                     char *field_copy = strdup(field_path);
@@ -2579,7 +2600,6 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                         /* Find this field in current struct */
                                         int field_offset = 0;
                                         DataType field_type = TYPE_UNKNOWN;
-                                        const char *field_struct_name = NULL;
                                         
                                         for (size_t fi = 0; fi < current_struct->fields.count; ++fi) {
                                             if (strcmp(current_struct->fields.items[fi].name, field_token) == 0) {
