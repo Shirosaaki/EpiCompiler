@@ -487,7 +487,6 @@ static int calc_field_offset(StructDefTable *sdt, StructDefInfo *struct_def,
         }
         
         if (!found) {
-            fprintf(stderr, "DEBUG field not found: %s\n", field_token);
             free(path_copy);
             return -1;  /* Field not found */
         }
@@ -1560,7 +1559,16 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
                     if (enum_node->type == AST_ENUM_DEF) {
                         for (size_t j = 0; j < enum_node->data.enum_def.member_count; ++j) {
                             if (strcmp(enum_node->data.enum_def.members[j], name) == 0) {
-                                emit_mov_eax_imm32(gen, (int32_t)j);
+                                int32_t value = (int32_t)j;
+                                if (strcmp(enum_node->data.enum_def.name, "DataType") == 0) {
+                                    for (size_t adj = 0; adj < j; ++adj) {
+                                        if (strcmp(enum_node->data.enum_def.members[adj], "Array") == 0) {
+                                            value -= 1;
+                                            break;  /* Only skip the first placeholder */
+                                        }
+                                    }
+                                }
+                                emit_mov_eax_imm32(gen, value);
                                 return 0;
                             }
                         }
@@ -2713,17 +2721,12 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                     if (arr && arr->is_array) {
                                         int is_struct_array = (arr->struct_name != NULL && field_path && *field_path);
                                         if (is_struct_array) {
-                                            fprintf(stderr, "DEBUG struct array: %s (type=%s) field=%s\n",
-                                                arr_name,
-                                                arr->struct_name ? arr->struct_name : "<null>",
-                                                field_path);
                                             StructDefInfo *struct_def = struct_def_table_find(&gen->struct_defs, arr->struct_name);
                                             if (struct_def) {
                                                 size_t struct_size = calc_struct_size(&gen->struct_defs, struct_def);
                                                 DataType field_type = TYPE_UNKNOWN;
                                                 int field_offset = calc_field_offset(&gen->struct_defs, struct_def, field_path, &field_type);
                                                 if (field_offset >= 0) {
-                                                    fprintf(stderr, "DEBUG offset=%d type=%d size=%zu\n", field_offset, field_type, struct_size);
                                                     /* Load index */
                                                     if (idx_var) {
                                                         emit_mov_rax_rbp_offset(gen, idx_var->stack_offset);
