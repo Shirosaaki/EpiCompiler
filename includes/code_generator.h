@@ -38,6 +38,7 @@ typedef struct {
     char *name;
     int stack_offset;  /* Negative offset from RBP */
     DataType type;
+    char *struct_name;  /* For struct types: name of the struct */
     size_t string_data_offset;  /* For TYPE_STRING: offset in data section */
     size_t string_length;       /* For TYPE_STRING: length of the string */
     int is_array;               /* 1 if this is an array */
@@ -98,6 +99,18 @@ typedef struct {
     size_t capacity;
 } StringRelocTable;
 
+/* ========== Struct Definition Info ========== */
+typedef struct {
+    char *name;
+    StructFieldList fields;
+} StructDefInfo;
+
+typedef struct {
+    StructDefInfo *items;
+    size_t count;
+    size_t capacity;
+} StructDefTable;
+
 /* ========== Code Generator State ========== */
 typedef struct {
     CodeBuffer code;          /* .text section */
@@ -124,6 +137,8 @@ typedef struct {
     /* Constants and enums from program */
     ASTNodeList *constants;   /* Pointer to program's constants list */
     ASTNodeList *enums;       /* Pointer to program's enums list */
+    ASTNodeList *structs;     /* Pointer to program's structs list */
+    StructDefTable struct_defs;  /* Compiled struct definitions */
     
     /* Error handling */
     char *error_msg;
@@ -172,6 +187,12 @@ void func_table_free(FunctionTable *ft);
 int func_table_add(FunctionTable *ft, const char *name, size_t offset, 
                    FuncParamList *params, DataType return_type);
 FunctionInfo *func_table_find(FunctionTable *ft, const char *name);
+
+/* Struct definition table operations */
+void struct_def_table_init(StructDefTable *sdt);
+void struct_def_table_free(StructDefTable *sdt);
+int struct_def_table_add(StructDefTable *sdt, const char *name, StructFieldList *fields);
+StructDefInfo *struct_def_table_find(StructDefTable *sdt, const char *name);
 
 /* Label operations */
 int codegen_create_label(CodeGenerator *gen);

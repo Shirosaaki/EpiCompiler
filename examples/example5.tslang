@@ -1,6 +1,6 @@
 destruct Personne:
-    char* nom
-    int age
+    nom -> string
+    age -> int
 
 Deschodt Eric() -> int
     eric p -> Personne

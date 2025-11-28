@@ -19,12 +19,15 @@ typedef enum ASTNodeType {
     AST_VAR_DECL,
     AST_CONST_DECL,        /* cz - constant declaration */
     AST_ENUM_DEF,          /* desnum - enum definition */
+    AST_STRUCT_DEF,        /* destruct - struct definition */
     AST_ASSIGNMENT,
     AST_ARRAY_ACCESS,      /* Array element access: arr[index] */
     AST_ARRAY_ASSIGN,      /* Array element assignment: arr[index] = value */
     AST_DEREF,             /* Pointer dereference: *ptr */
     AST_DEREF_ASSIGN,      /* Pointer dereference assignment: *ptr = value */
     AST_ADDRESS_OF,        /* Address-of operator: &var */
+    AST_STRUCT_ACCESS,     /* Struct field access: struct.field */
+    AST_STRUCT_ASSIGN,     /* Struct field assignment: struct.field = value */
     AST_RETURN,
     AST_PRINT,
     AST_IF,
@@ -71,6 +74,18 @@ typedef struct ASTNodeList {
     size_t capacity;
 } ASTNodeList;
 
+/* Struct field definition */
+typedef struct StructField {
+    char *name;
+    DataType type;
+} StructField;
+
+typedef struct StructFieldList {
+    StructField *items;
+    size_t count;
+    size_t capacity;
+} StructFieldList;
+
 /* Function parameter */
 typedef struct FuncParam {
     char *name;
@@ -95,6 +110,7 @@ struct ASTNode {
             ASTNodeList functions;
             ASTNodeList constants;  /* Global constants (cz) */
             ASTNodeList enums;      /* Enum definitions (desnum) */
+            ASTNodeList structs;    /* Struct definitions (destruct) */
         } program;
 
         /* AST_FUNCTION_DEF */
@@ -109,6 +125,7 @@ struct ASTNode {
         struct {
             char *name;
             DataType var_type;
+            char *struct_type_name;  /* For struct types: name of the struct */
             ASTNode *init_value;  /* can be NULL if no initialization */
         } var_decl;
 
@@ -231,6 +248,25 @@ struct ASTNode {
             char **members;     /* Array of member names */
             size_t member_count;
         } enum_def;
+
+        /* AST_STRUCT_DEF: destruct StructName: field1 -> type1, field2 -> type2, ... */
+        struct {
+            char *name;
+            StructFieldList fields;
+        } struct_def;
+
+        /* AST_STRUCT_ACCESS: struct.field */
+        struct {
+            char *struct_name;
+            char *field_name;
+        } struct_access;
+
+        /* AST_STRUCT_ASSIGN: struct.field = value */
+        struct {
+            char *struct_name;
+            char *field_name;
+            ASTNode *value;
+        } struct_assign;
     } data;
 };
 
@@ -265,6 +301,11 @@ int ast_list_push(ASTNodeList *list, ASTNode *node);
 void param_list_init(FuncParamList *list);
 void param_list_free(FuncParamList *list);
 int param_list_push(FuncParamList *list, FuncParam param);
+
+/* Struct field list helpers */
+void struct_field_list_init(StructFieldList *list);
+void struct_field_list_free(StructFieldList *list);
+int struct_field_list_push(StructFieldList *list, StructField field);
 
 /* Utility to convert type string to DataType */
 DataType str_to_datatype(const char *str);

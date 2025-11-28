@@ -71,6 +71,37 @@ int param_list_push(FuncParamList *list, FuncParam param)
     return 0;
 }
 
+void struct_field_list_init(StructFieldList *list)
+{
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+void struct_field_list_free(StructFieldList *list)
+{
+    for (size_t i = 0; i < list->count; ++i) {
+        free(list->items[i].name);
+    }
+    free(list->items);
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+int struct_field_list_push(StructFieldList *list, StructField field)
+{
+    if (list->count >= list->capacity) {
+        size_t new_cap = list->capacity == 0 ? 4 : list->capacity * 2;
+        StructField *new_items = realloc(list->items, new_cap * sizeof(StructField));
+        if (!new_items) return -1;
+        list->items = new_items;
+        list->capacity = new_cap;
+    }
+    list->items[list->count++] = field;
+    return 0;
+}
+
 DataType str_to_datatype(const char *str)
 {
     if (!str) return TYPE_UNKNOWN;
@@ -131,6 +162,7 @@ void ast_free(ASTNode *node)
             ast_list_free(&node->data.program.functions);
             ast_list_free(&node->data.program.constants);
             ast_list_free(&node->data.program.enums);
+            ast_list_free(&node->data.program.structs);
             break;
         case AST_FUNCTION_DEF:
             free(node->data.func_def.name);
@@ -139,6 +171,7 @@ void ast_free(ASTNode *node)
             break;
         case AST_VAR_DECL:
             free(node->data.var_decl.name);
+            free(node->data.var_decl.struct_type_name);
             ast_free(node->data.var_decl.init_value);
             break;
         case AST_ASSIGNMENT:
@@ -199,6 +232,44 @@ void ast_free(ASTNode *node)
             break;
         case AST_COMMENT:
             free(node->data.comment.text);
+            break;
+        case AST_STRUCT_DEF: {
+            free(node->data.struct_def.name);
+            for (size_t i = 0; i < node->data.struct_def.fields.count; ++i) {
+                free(node->data.struct_def.fields.items[i].name);
+            }
+            free(node->data.struct_def.fields.items);
+            break;
+        }
+        case AST_STRUCT_ACCESS:
+            free(node->data.struct_access.struct_name);
+            free(node->data.struct_access.field_name);
+            break;
+        case AST_STRUCT_ASSIGN:
+            free(node->data.struct_assign.struct_name);
+            free(node->data.struct_assign.field_name);
+            ast_free(node->data.struct_assign.value);
+            break;
+        case AST_DEREF:
+            ast_free(node->data.deref.operand);
+            break;
+        case AST_DEREF_ASSIGN:
+            ast_free(node->data.deref_assign.ptr);
+            ast_free(node->data.deref_assign.value);
+            break;
+        case AST_ADDRESS_OF:
+            free(node->data.address_of.var_name);
+            break;
+        case AST_CONST_DECL:
+            free(node->data.const_decl.name);
+            ast_free(node->data.const_decl.value);
+            break;
+        case AST_ENUM_DEF:
+            free(node->data.enum_def.name);
+            for (size_t i = 0; i < node->data.enum_def.member_count; ++i) {
+                free(node->data.enum_def.members[i]);
+            }
+            free(node->data.enum_def.members);
             break;
         default:
             break;
@@ -596,6 +667,13 @@ static ASTNode *parse_var_decl(Parser *p)
     ASTNode *node = ast_create(AST_VAR_DECL, line, col);
     node->data.var_decl.name = var_name;
     node->data.var_decl.var_type = var_type;
+    node->data.var_decl.struct_type_name = NULL;
+    
+    /* If type is TYPE_UNKNOWN, it might be a struct type */
+    if (var_type == TYPE_UNKNOWN) {
+        node->data.var_decl.struct_type_name = strdup(type_str);
+    }
+    
     node->data.var_decl.init_value = init_value;
     
     /* If array with size, create array initialization */
@@ -659,6 +737,46 @@ static ASTNode *parse_assignment(Parser *p)
     ASTNode *node = ast_create(AST_ASSIGNMENT, line, col);
     node->data.assignment.var_name = var_name;
     node->data.assignment.value = value;
+    return node;
+}
+
+/* Parse struct field assignment: struct.field = value */
+static ASTNode *parse_struct_field_assignment(Parser *p)
+{
+    Token *t = current(p);
+    char *struct_name = strdup(t->lexeme);
+    size_t line = t->line, col = t->column;
+    advance(p);  /* consume struct name */
+
+    if (!match_operator(p, ".")) {
+        set_error(p, "Expected '.' in struct field assignment", current(p));
+        free(struct_name);
+        return NULL;
+    }
+    advance(p);  /* consume '.' */
+
+    if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+        set_error(p, "Expected field name after '.'", current(p));
+        free(struct_name);
+        return NULL;
+    }
+    char *field_name = strdup(current(p)->lexeme);
+    advance(p);  /* consume field name */
+
+    if (!match_operator(p, "=")) {
+        set_error(p, "Expected '=' after struct field", current(p));
+        free(struct_name);
+        free(field_name);
+        return NULL;
+    }
+    advance(p);  /* consume '=' */
+
+    ASTNode *value = parse_expression(p);
+
+    ASTNode *node = ast_create(AST_STRUCT_ASSIGN, line, col);
+    node->data.struct_assign.struct_name = struct_name;
+    node->data.struct_assign.field_name = field_name;
+    node->data.struct_assign.value = value;
     return node;
 }
 
@@ -788,6 +906,99 @@ static ASTNode *parse_enum_def(Parser *p)
     node->data.enum_def.name = name;
     node->data.enum_def.members = members;
     node->data.enum_def.member_count = member_count;
+    return node;
+}
+
+/* Parse struct definition: destruct StructName: field1 -> type1, field2 -> type2 */
+static ASTNode *parse_struct_def(Parser *p)
+{
+    Token *t = current(p);
+    size_t line = t->line, col = t->column;
+    advance(p);  /* consume 'destruct' or 'Destruct' */
+
+    if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+        set_error(p, "Expected struct name after 'destruct'", current(p));
+        return NULL;
+    }
+    char *name = strdup(current(p)->lexeme);
+    advance(p);  /* consume struct name */
+
+    if (!match_operator(p, ":")) {
+        set_error(p, "Expected ':' after struct name", current(p));
+        free(name);
+        return NULL;
+    }
+    advance(p);  /* consume ':' */
+
+    /* Skip newlines after the colon (for indented block style) */
+    skip_newlines(p);
+
+    /* Parse struct fields */
+    StructFieldList fields;
+    struct_field_list_init(&fields);
+
+    while (current(p) && current(p)->type == TOK_IDENTIFIER) {
+        StructField field;
+        field.name = strdup(current(p)->lexeme);
+        advance(p);  /* consume field name */
+
+        if (!match_operator(p, "->")) {
+            set_error(p, "Expected '->' for field type declaration", current(p));
+            free(field.name);
+            struct_field_list_free(&fields);
+            free(name);
+            return NULL;
+        }
+        advance(p);  /* consume '->' */
+
+        if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+            set_error(p, "Expected type name after '->'", current(p));
+            free(field.name);
+            struct_field_list_free(&fields);
+            free(name);
+            return NULL;
+        }
+
+        /* Parse type */
+        char type_str[64];
+        strncpy(type_str, current(p)->lexeme, sizeof(type_str) - 3);
+        type_str[sizeof(type_str) - 3] = '\0';
+        advance(p);
+
+        /* Check for pointer or array suffix */
+        if (match_operator(p, "*")) {
+            strcat(type_str, "*");
+            advance(p);
+        } else if (match_operator(p, "[")) {
+            strcat(type_str, "[]");
+            advance(p);
+            if (match_operator(p, "]")) {
+                advance(p);
+            }
+        }
+
+        field.type = str_to_datatype(type_str);
+        struct_field_list_push(&fields, field);
+
+        /* Check for comma or newline */
+        if (match_operator(p, ",")) {
+            advance(p);  /* consume ',' */
+            skip_newlines(p);
+        } else {
+            /* Skip newlines to check for more fields */
+            skip_newlines(p);
+        }
+    }
+
+    if (fields.count == 0) {
+        set_error(p, "Struct must have at least one field", current(p));
+        free(name);
+        return NULL;
+    }
+
+    ASTNode *node = ast_create(AST_STRUCT_DEF, line, col);
+    node->data.struct_def.name = name;
+    node->data.struct_def.fields = fields;
     return node;
 }
 
@@ -1053,11 +1264,22 @@ static ASTNode *parse_statement(Parser *p)
 
     /* Assignment or expression starting with identifier */
     if (t->type == TOK_IDENTIFIER) {
-        /* Look ahead for '=' or '[' (for array assignment) */
+        /* Look ahead for '=' or '[' (for array assignment) or '.' (for struct field access) */
         Token *next = peek(p, 1);
-        if (next && next->type == TOK_OPERATOR && 
-            (strcmp(next->lexeme, "=") == 0 || strcmp(next->lexeme, "[") == 0)) {
-            return parse_assignment(p);
+        if (next && next->type == TOK_OPERATOR) {
+            if (strcmp(next->lexeme, "=") == 0 || strcmp(next->lexeme, "[") == 0) {
+                return parse_assignment(p);
+            } else if (strcmp(next->lexeme, ".") == 0) {
+                /* Check if it's a struct field assignment */
+                Token *after_dot = peek(p, 2);
+                if (after_dot && after_dot->type == TOK_IDENTIFIER) {
+                    Token *after_field = peek(p, 3);
+                    if (after_field && after_field->type == TOK_OPERATOR && 
+                        strcmp(after_field->lexeme, "=") == 0) {
+                        return parse_struct_field_assignment(p);
+                    }
+                }
+            }
         }
         /* Otherwise it might be a function call or expression */
         return parse_expression(p);
@@ -1257,6 +1479,7 @@ ASTNode *parser_parse(Parser *parser)
     ast_list_init(&program->data.program.functions);
     ast_list_init(&program->data.program.constants);
     ast_list_init(&program->data.program.enums);
+    ast_list_init(&program->data.program.structs);
 
     while (current(parser) && current(parser)->type != TOK_EOF) {
         skip_newlines(parser);
@@ -1285,6 +1508,15 @@ ASTNode *parser_parse(Parser *parser)
             ASTNode *enum_node = parse_enum_def(parser);
             if (enum_node) {
                 ast_list_push(&program->data.program.enums, enum_node);
+            }
+            continue;
+        }
+
+        /* Struct definition: destruct StructName: field1 -> type1, field2 -> type2 */
+        if (match_keyword(parser, "destruct") || match_keyword(parser, "Destruct")) {
+            ASTNode *struct_node = parse_struct_def(parser);
+            if (struct_node) {
+                ast_list_push(&program->data.program.structs, struct_node);
             }
             continue;
         }

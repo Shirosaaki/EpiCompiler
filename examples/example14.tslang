@@ -12,6 +12,9 @@ Deschodt Eric() -> int
     car.vitesse = 100
 
     accelerate(&car, 20)
+    accelerate(&car, 20)
+    accelerate(&car, 20)
+    accelerate(&car, 20)
     deschodt 0
 
 desnote print Peugeot roule à 120 km/h

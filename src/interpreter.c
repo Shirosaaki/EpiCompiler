@@ -58,6 +58,62 @@ Value value_create_array(ValueType element_type)
     return v;
 }
 
+Value value_create_struct(const char *type_name)
+{
+    Value v;
+    v.type = VAL_STRUCT;
+    v.data.struct_val = calloc(1, sizeof(StructValue));
+    v.data.struct_val->type_name = type_name ? strdup(type_name) : NULL;
+    v.data.struct_val->fields = NULL;
+    v.data.struct_val->field_count = 0;
+    v.is_return = 0;
+    return v;
+}
+
+/* Set struct field value */
+static void struct_set_field(StructValue *sv, const char *name, Value val)
+{
+    if (!sv || !name) return;
+    
+    /* Check if field already exists */
+    for (size_t i = 0; i < sv->field_count; ++i) {
+        if (strcmp(sv->fields[i].name, name) == 0) {
+            value_free(sv->fields[i].value);
+            *sv->fields[i].value = val;
+            return;
+        }
+    }
+    
+    /* Add new field */
+    sv->fields = realloc(sv->fields, (sv->field_count + 1) * sizeof(StructField_RT));
+    sv->fields[sv->field_count].name = strdup(name);
+    sv->fields[sv->field_count].value = malloc(sizeof(Value));
+    *sv->fields[sv->field_count].value = val;
+    sv->field_count++;
+}
+
+/* Get struct field value */
+static Value struct_get_field(StructValue *sv, const char *name)
+{
+    if (!sv || !name) return value_create_void();
+    
+    for (size_t i = 0; i < sv->field_count; ++i) {
+        if (strcmp(sv->fields[i].name, name) == 0) {
+            /* Return a copy of the value */
+            Value *v = sv->fields[i].value;
+            if (v->type == VAL_STRING) {
+                return value_create_string(v->data.string_val);
+            } else if (v->type == VAL_INT) {
+                return value_create_int(v->data.int_val);
+            } else if (v->type == VAL_FLOAT) {
+                return value_create_float(v->data.float_val);
+            }
+            return *v;
+        }
+    }
+    return value_create_void();
+}
+
 /* Set array element at index, auto-filling intermediate indices with last value */
 void array_set_element(ArrayValue *arr, size_t index, Value val)
 {
@@ -136,6 +192,17 @@ void value_free(Value *val)
         free(arr->elements);
         free(arr);
         val->data.array_val = NULL;
+    } else if (val->type == VAL_STRUCT && val->data.struct_val) {
+        StructValue *sv = val->data.struct_val;
+        for (size_t i = 0; i < sv->field_count; ++i) {
+            free(sv->fields[i].name);
+            value_free(sv->fields[i].value);
+            free(sv->fields[i].value);
+        }
+        free(sv->fields);
+        free(sv->type_name);
+        free(sv);
+        val->data.struct_val = NULL;
     }
 }
 
@@ -311,6 +378,9 @@ static FuncDef *func_registry_get(FuncRegistry *reg, const char *name)
 void interpreter_init(Interpreter *interp)
 {
     func_registry_init(&interp->functions);
+    interp->structs.defs = NULL;
+    interp->structs.count = 0;
+    interp->structs.capacity = 0;
     interp->current_scope = NULL;
     interp->error_msg = NULL;
     interp->error_line = 0;
@@ -323,6 +393,11 @@ void interpreter_init(Interpreter *interp)
 void interpreter_free(Interpreter *interp)
 {
     func_registry_free(&interp->functions);
+    /* Free struct registry */
+    for (size_t i = 0; i < interp->structs.count; ++i) {
+        free(interp->structs.defs[i].name);
+    }
+    free(interp->structs.defs);
     free(interp->error_msg);
 
     /* Free all scopes */
@@ -486,6 +561,24 @@ static char *process_format_string(Interpreter *interp, const char *format)
                         val_str = strdup("<undefined>");
                     }
                     free(arr_name);
+                } else if (strchr(expr, '.')) {
+                    /* Struct field access: struct.field */
+                    char *dot = strchr(expr, '.');
+                    size_t struct_name_len = dot - expr;
+                    char *struct_name = malloc(struct_name_len + 1);
+                    strncpy(struct_name, expr, struct_name_len);
+                    struct_name[struct_name_len] = '\0';
+                    char *field_name = dot + 1;
+                    
+                    Variable *var = scope_get_var(interp->current_scope, struct_name);
+                    if (var && var->value.type == VAL_STRUCT) {
+                        Value field_val = struct_get_field(var->value.data.struct_val, field_name);
+                        val_str = value_to_string(&field_val);
+                        value_free(&field_val);
+                    } else {
+                        val_str = strdup("<undefined>");
+                    }
+                    free(struct_name);
                 } else {
                     /* Simple variable */
                     Variable *var = scope_get_var(interp->current_scope, expr);
@@ -752,6 +845,28 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
             return result;
         }
 
+        case AST_STRUCT_ACCESS: {
+            /* Access struct field: struct.field */
+            const char *struct_name = node->data.struct_access.struct_name;
+            const char *field_name = node->data.struct_access.field_name;
+            
+            Variable *var = scope_get_var(interp->current_scope, struct_name);
+            if (!var) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined struct variable '%s'", struct_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            if (var->value.type != VAL_STRUCT) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' is not a struct", struct_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            
+            return struct_get_field(var->value.data.struct_val, field_name);
+        }
+
         default:
             return value_create_void();
     }
@@ -812,6 +927,14 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
                     case TYPE_CHAR_ARRAY:
                         init_val = value_create_array(VAL_INT);  /* char stored as int */
                         break;
+                    case TYPE_UNKNOWN:
+                        /* Check if this is a struct type */
+                        if (node->data.var_decl.struct_type_name) {
+                            init_val = value_create_struct(node->data.var_decl.struct_type_name);
+                        } else {
+                            init_val = value_create_void();
+                        }
+                        break;
                     default:
                         init_val = value_create_void();
                         break;
@@ -855,6 +978,31 @@ static Value exec_statement(Interpreter *interp, ASTNode *node)
             
             size_t index = (size_t)idx_val.data.int_val;
             array_set_element(var->value.data.array_val, index, val);
+            
+            return value_create_void();
+        }
+
+        case AST_STRUCT_ASSIGN: {
+            /* Struct field assignment: struct.field = value */
+            const char *struct_name = node->data.struct_assign.struct_name;
+            const char *field_name = node->data.struct_assign.field_name;
+            
+            Variable *var = scope_get_var(interp->current_scope, struct_name);
+            if (!var) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Undefined struct variable '%s'", struct_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            if (var->value.type != VAL_STRUCT) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' is not a struct", struct_name);
+                set_runtime_error(interp, msg, node->line);
+                return value_create_void();
+            }
+            
+            Value val = eval_expression(interp, node->data.struct_assign.value);
+            struct_set_field(var->value.data.struct_val, field_name, val);
             
             return value_create_void();
         }
@@ -1047,6 +1195,21 @@ int interpreter_run(Interpreter *interp, ASTNode *program)
         ASTNode *func = program->data.program.functions.items[i];
         if (func->type == AST_FUNCTION_DEF) {
             func_registry_add(&interp->functions, func->data.func_def.name, func);
+        }
+    }
+
+    /* Register all struct definitions */
+    for (size_t i = 0; i < program->data.program.structs.count; ++i) {
+        ASTNode *struct_node = program->data.program.structs.items[i];
+        if (struct_node->type == AST_STRUCT_DEF) {
+            if (interp->structs.count >= interp->structs.capacity) {
+                size_t new_cap = interp->structs.capacity == 0 ? 8 : interp->structs.capacity * 2;
+                interp->structs.defs = realloc(interp->structs.defs, new_cap * sizeof(StructDefRT));
+                interp->structs.capacity = new_cap;
+            }
+            interp->structs.defs[interp->structs.count].name = strdup(struct_node->data.struct_def.name);
+            interp->structs.defs[interp->structs.count].ast_node = struct_node;
+            interp->structs.count++;
         }
     }
 

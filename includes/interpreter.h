@@ -24,6 +24,7 @@ typedef enum ValueType {
     VAL_VOID,
     VAL_ARRAY,   /* Array type */
     VAL_POINTER, /* Pointer type */
+    VAL_STRUCT,  /* Struct type */
     VAL_RETURN   /* Special type for return statements */
 } ValueType;
 
@@ -35,6 +36,19 @@ typedef struct ArrayValue {
     ValueType element_type;  /* Type of elements in array */
 } ArrayValue;
 
+/* Struct field for runtime - uses pointer to avoid incomplete type issue */
+typedef struct StructField_RT {
+    char *name;
+    struct Value *value;  /* Pointer to value */
+} StructField_RT;
+
+/* Struct value for runtime */
+typedef struct StructValue {
+    char *type_name;           /* Name of the struct type */
+    StructField_RT *fields;
+    size_t field_count;
+} StructValue;
+
 typedef struct Value {
     ValueType type;
     union {
@@ -43,6 +57,7 @@ typedef struct Value {
         char *string_val;
         ArrayValue *array_val;
         Variable *ptr_val;  /* Pointer to a variable */
+        StructValue *struct_val;  /* Struct value */
     } data;
     int is_return;  /* Flag for return value propagation */
 } Value;
@@ -74,9 +89,22 @@ typedef struct FuncRegistry {
     size_t capacity;
 } FuncRegistry;
 
+/* ========== Struct Definition Storage ========== */
+typedef struct StructDefRT {
+    char *name;
+    ASTNode *ast_node;  /* Points to AST_STRUCT_DEF */
+} StructDefRT;
+
+typedef struct StructRegistry {
+    StructDefRT *defs;
+    size_t count;
+    size_t capacity;
+} StructRegistry;
+
 /* ========== Interpreter State ========== */
 typedef struct Interpreter {
     FuncRegistry functions;
+    StructRegistry structs;
     VarScope *current_scope;
     char *error_msg;
     size_t error_line;
@@ -99,6 +127,7 @@ Value value_create_float(double val);
 Value value_create_string(const char *val);
 Value value_create_void(void);
 Value value_create_array(ValueType element_type);
+Value value_create_struct(const char *type_name);
 void value_free(Value *val);
 void value_print(Value *val);
 char *value_to_string(Value *val);
