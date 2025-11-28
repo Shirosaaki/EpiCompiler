@@ -391,6 +391,7 @@ int lexer_tokenize_file(const char *filename, TokenList *out_tokens, LexError *o
             size_t startcol = col;
             ++i; ++col; size_t start = i;
             char *buf = malloc(1);
+            buf[0] = '\0';  /* Initialize empty string */
             size_t blen = 0;
             while (src[i] && src[i] != '"') {
                 if (src[i] == '\\' && src[i+1]) {

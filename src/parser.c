@@ -437,22 +437,44 @@ static ASTNode *parse_primary(Parser *p)
             return node;
         }
 
-        /* Check for struct field access or enum member access: name.field */
+        /* Check for struct field access or enum member access: name.field.subfield... */
         if (match_operator(p, ".")) {
+            /* Create initial struct access node */
+            ASTNode *result = ast_create(AST_STRUCT_ACCESS, line, col);
+            result->data.struct_access.struct_name = name;
+            
             advance(p);  /* consume '.' */
             if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
                 set_error(p, "Expected field name after '.'", current(p));
-                free(name);
+                ast_free(result);
                 return NULL;
             }
-            char *field_name = strdup(current(p)->lexeme);
+            result->data.struct_access.field_name = strdup(current(p)->lexeme);
             advance(p);  /* consume field name */
             
-            /* Create struct access node */
-            ASTNode *node = ast_create(AST_STRUCT_ACCESS, line, col);
-            node->data.struct_access.struct_name = name;
-            node->data.struct_access.field_name = field_name;
-            return node;
+            /* Handle chained field access: a.b.c.d... */
+            while (match_operator(p, ".")) {
+                advance(p);  /* consume '.' */
+                if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+                    set_error(p, "Expected field name after '.'", current(p));
+                    ast_free(result);
+                    return NULL;
+                }
+                
+                /* Create a new struct access node wrapping the previous one */
+                /* We need to store the chain differently - use the previous node as struct_name */
+                /* For simplicity, we'll use a different approach: concatenate field names with dots */
+                char *old_field = result->data.struct_access.field_name;
+                char *new_field = current(p)->lexeme;
+                size_t new_len = strlen(old_field) + 1 + strlen(new_field) + 1;
+                char *combined = malloc(new_len);
+                sprintf(combined, "%s.%s", old_field, new_field);
+                free(old_field);
+                result->data.struct_access.field_name = combined;
+                advance(p);  /* consume field name */
+            }
+            
+            return result;
         }
 
         /* Just an identifier */
@@ -738,7 +760,7 @@ static ASTNode *parse_assignment(Parser *p)
     return node;
 }
 
-/* Parse struct field assignment: struct.field = value */
+/* Parse struct field assignment: struct.field = value or struct.field.subfield = value */
 static ASTNode *parse_struct_field_assignment(Parser *p)
 {
     Token *t = current(p);
@@ -760,6 +782,25 @@ static ASTNode *parse_struct_field_assignment(Parser *p)
     }
     char *field_name = strdup(current(p)->lexeme);
     advance(p);  /* consume field name */
+
+    /* Handle chained field access (e.g., stats.vie in joueur.stats.vie) */
+    while (match_operator(p, ".")) {
+        advance(p);  /* consume '.' */
+        if (!current(p) || current(p)->type != TOK_IDENTIFIER) {
+            set_error(p, "Expected field name after '.'", current(p));
+            free(struct_name);
+            free(field_name);
+            return NULL;
+        }
+        /* Append new field name with dot separator */
+        char *old_field = field_name;
+        char *new_field = current(p)->lexeme;
+        size_t new_len = strlen(old_field) + 1 + strlen(new_field) + 1;
+        field_name = malloc(new_len);
+        sprintf(field_name, "%s.%s", old_field, new_field);
+        free(old_field);
+        advance(p);  /* consume field name */
+    }
 
     if (!match_operator(p, "=")) {
         set_error(p, "Expected '=' after struct field", current(p));
@@ -1268,14 +1309,27 @@ static ASTNode *parse_statement(Parser *p)
             if (strcmp(next->lexeme, "=") == 0 || strcmp(next->lexeme, "[") == 0) {
                 return parse_assignment(p);
             } else if (strcmp(next->lexeme, ".") == 0) {
-                /* Check if it's a struct field assignment */
-                Token *after_dot = peek(p, 2);
-                if (after_dot && after_dot->type == TOK_IDENTIFIER) {
-                    Token *after_field = peek(p, 3);
-                    if (after_field && after_field->type == TOK_OPERATOR && 
-                        strcmp(after_field->lexeme, "=") == 0) {
-                        return parse_struct_field_assignment(p);
+                /* Check if it's a struct field assignment - scan ahead for '=' */
+                /* Pattern: identifier(.identifier)* = value */
+                int pos = 2;  /* Start after first '.' */
+                int is_struct_assign = 0;
+                while (1) {
+                    Token *field = peek(p, pos);
+                    if (!field || field->type != TOK_IDENTIFIER) break;
+                    pos++;
+                    Token *after = peek(p, pos);
+                    if (!after) break;
+                    if (after->type == TOK_OPERATOR && strcmp(after->lexeme, "=") == 0) {
+                        is_struct_assign = 1;
+                        break;
+                    } else if (after->type == TOK_OPERATOR && strcmp(after->lexeme, ".") == 0) {
+                        pos++;  /* Continue to next field */
+                    } else {
+                        break;  /* Not a struct assignment */
                     }
+                }
+                if (is_struct_assign) {
+                    return parse_struct_field_assignment(p);
                 }
             }
         }

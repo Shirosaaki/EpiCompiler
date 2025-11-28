@@ -1,0 +1,372 @@
+desnote ========================================
+desnote =     FINAL BOSS TEST - TSLang     =
+desnote =  Combining ALL language features =
+desnote ========================================
+
+desnote === CONSTANTS (example10) ===
+cz PI = 3.14159 -> float
+cz MAX_PLAYERS = 4 -> int
+cz GAME_NAME = "EpiQuest" -> string
+cz BOSS_HEALTH = 1000 -> int
+
+desnote === ENUMS (example10) ===
+desnum Classe:
+    Guerrier
+    Mage
+    Archer
+    Assassin
+
+desnum Etat:
+    Vivant
+    Mort
+    Paralyse
+
+desnote === STRUCTS (example5, example14) ===
+destruct Stats:
+    force -> int
+    intelligence -> int
+    agilite -> int
+    vie -> int
+    vie_max -> int
+
+destruct Joueur:
+    nom -> string
+    classe -> Classe
+    niveau -> int
+    experience -> int
+    etat -> Etat
+    stats -> Stats
+
+destruct Boss:
+    nom -> string
+    vie -> int
+    degats -> int
+    estVaincu -> int
+
+desnote === RECURSIVE FUNCTION (example12) ===
+Deschodt puissance(base -> int, exp -> int) -> int
+    erif (exp <= 0):
+        deschodt 1
+    deschelse:
+        deschodt base * puissance(base, exp - 1)
+
+desnote === FUNCTION WITH ARRAY PARAMETER (example13) ===
+Deschodt calculerDegatsTotal(degats -> int[], nb -> int) -> int
+    eric total = 0 -> int
+    aer i in range(0, nb):
+        total = total + degats[i]
+    deschodt total
+
+desnote === POINTER FUNCTION (example11) ===
+Deschodt soigner(joueur -> Joueur*, soin -> int) -> void
+    eric nouvelle_vie = joueur.stats.vie + soin -> int
+    erif (nouvelle_vie > joueur.stats.vie_max):
+        joueur.stats.vie = joueur.stats.vie_max
+    deschelse:
+        joueur.stats.vie = nouvelle_vie
+    peric("{joueur.nom} récupère {soin} PV ! Vie: {joueur.stats.vie}/{joueur.stats.vie_max}")
+
+Deschodt subirDegats(joueur -> Joueur*, degats -> int) -> void
+    joueur.stats.vie = joueur.stats.vie - degats
+    erif (joueur.stats.vie <= 0):
+        joueur.stats.vie = 0
+        joueur.etat = Mort
+        peric("{joueur.nom} est tombé au combat !")
+    deschelse:
+        peric("{joueur.nom} subit {degats} dégâts ! Vie: {joueur.stats.vie}/{joueur.stats.vie_max}")
+
+desnote === STRUCT POINTER FUNCTION (example14) ===
+Deschodt attaquerBoss(boss -> Boss*, joueur -> Joueur*) -> int
+    eric degats = 0 -> int
+    
+    desnote Calcul des dégâts selon la classe
+    erif (joueur.classe == Guerrier):
+        degats = joueur.stats.force * 2
+    deschelse:
+        erif (joueur.classe == Mage):
+            degats = joueur.stats.intelligence * 3
+        deschelse:
+            erif (joueur.classe == Archer):
+                degats = joueur.stats.agilite * 2 + joueur.stats.force
+            deschelse:
+                degats = joueur.stats.agilite * 4
+    
+    desnote Bonus de niveau
+    degats = degats + joueur.niveau * 5
+    
+    boss.vie = boss.vie - degats
+    erif (boss.vie <= 0):
+        boss.vie = 0
+        boss.estVaincu = 1
+    
+    peric("{joueur.nom} ({joueur.classe}) inflige {degats} dégâts au {boss.nom} !")
+    deschodt degats
+
+Deschodt gagnerExperience(joueur -> Joueur*, xp -> int) -> void
+    joueur.experience = joueur.experience + xp
+    eric seuil = puissance(2, joueur.niveau) * 100 -> int
+    
+    darius (joueur.experience >= seuil):
+        joueur.experience = joueur.experience - seuil
+        joueur.niveau = joueur.niveau + 1
+        joueur.stats.vie_max = joueur.stats.vie_max + 10
+        joueur.stats.force = joueur.stats.force + 2
+        joueur.stats.intelligence = joueur.stats.intelligence + 2
+        joueur.stats.agilite = joueur.stats.agilite + 2
+        peric("*** {joueur.nom} monte au niveau {joueur.niveau} ! ***")
+        seuil = puissance(2, joueur.niveau) * 100
+
+desnote === INITIALIZATION FUNCTION ===
+Deschodt initialiserJoueur(joueur -> Joueur*, nom -> string, classe -> Classe) -> void
+    joueur.nom = nom
+    joueur.classe = classe
+    joueur.niveau = 1
+    joueur.experience = 0
+    joueur.etat = Vivant
+    joueur.stats.vie_max = 100
+    joueur.stats.vie = 100
+    
+    erif (classe == Guerrier):
+        joueur.stats.force = 15
+        joueur.stats.intelligence = 5
+        joueur.stats.agilite = 8
+    deschelse:
+        erif (classe == Mage):
+            joueur.stats.force = 5
+            joueur.stats.intelligence = 15
+            joueur.stats.agilite = 8
+        deschelse:
+            erif (classe == Archer):
+                joueur.stats.force = 10
+                joueur.stats.intelligence = 8
+                joueur.stats.agilite = 12
+            deschelse:
+                joueur.stats.force = 8
+                joueur.stats.intelligence = 6
+                joueur.stats.agilite = 15
+
+Deschodt afficherJoueur(joueur -> Joueur*) -> void
+    peric("--- {joueur.nom} ---")
+    peric("  Classe: {joueur.classe}")
+    peric("  Niveau: {joueur.niveau}")
+    peric("  XP: {joueur.experience}")
+    peric("  Vie: {joueur.stats.vie}/{joueur.stats.vie_max}")
+    peric("  FOR: {joueur.stats.force} | INT: {joueur.stats.intelligence} | AGI: {joueur.stats.agilite}")
+
+desnote === MAIN FUNCTION (example1, example7) ===
+Deschodt Eric() -> int
+    peric("========================================")
+    peric("=    Bienvenue dans {GAME_NAME}        =")
+    peric("=      COMBAT DU BOSS FINAL           =")
+    peric("========================================")
+    peric("")
+
+    desnote === ARRAY DECLARATION (example6) ===
+    eric historique_degats -> int[100]
+    eric nb_attaques = 0 -> int
+
+    desnote === STRUCT INSTANTIATION (example5) ===
+    eric boss -> Boss
+    boss.nom = "Dragon Ancestral"
+    boss.vie = BOSS_HEALTH
+    boss.degats = 25
+    boss.estVaincu = 0
+
+    desnote === MULTIPLE PLAYERS ===
+    eric joueur1 -> Joueur
+    eric joueur2 -> Joueur
+    eric joueur3 -> Joueur
+    eric joueur4 -> Joueur
+
+    desnote === POINTER USAGE (example11) ===
+    initialiserJoueur(&joueur1, "Aldric", Guerrier)
+    initialiserJoueur(&joueur2, "Merlin", Mage)
+    initialiserJoueur(&joueur3, "Robin", Archer)
+    initialiserJoueur(&joueur4, "Shadow", Assassin)
+
+    peric("=== Équipe de héros ===")
+    afficherJoueur(&joueur1)
+    afficherJoueur(&joueur2)
+    afficherJoueur(&joueur3)
+    afficherJoueur(&joueur4)
+    peric("")
+
+    peric("=== Le {boss.nom} apparaît ! (PV: {boss.vie}) ===")
+    peric("")
+
+    desnote === COMBAT LOOP - WHILE (example3) ===
+    eric tour = 1 -> int
+    eric joueurs_vivants = MAX_PLAYERS -> int
+
+    darius (boss.estVaincu == 0):
+        erif (joueurs_vivants <= 0):
+            deschreak
+
+        peric("--- Tour {tour} ---")
+
+        desnote === FOR LOOP WITH BREAK/CONTINUE (example3, example8) ===
+        aer i in range(0, MAX_PLAYERS):
+            desnote Check si le boss est vaincu
+            erif (boss.estVaincu == 1):
+                deschreak
+
+            desnote === CONDITIONALS (example4) ===
+            eric joueur_actuel_etat = Vivant -> Etat
+            eric joueur_actuel_vie = 0 -> int
+            
+            erif (i == 0):
+                joueur_actuel_etat = joueur1.etat
+                joueur_actuel_vie = joueur1.stats.vie
+            deschelse:
+                erif (i == 1):
+                    joueur_actuel_etat = joueur2.etat
+                    joueur_actuel_vie = joueur2.stats.vie
+                deschelse:
+                    erif (i == 2):
+                        joueur_actuel_etat = joueur3.etat
+                        joueur_actuel_vie = joueur3.stats.vie
+                    deschelse:
+                        joueur_actuel_etat = joueur4.etat
+                        joueur_actuel_vie = joueur4.stats.vie
+
+            desnote Skip joueurs morts (continue - example8)
+            erif (joueur_actuel_etat == Mort):
+                deschontinue
+
+            desnote Attaque du joueur
+            eric degats_infliges = 0 -> int
+            erif (i == 0):
+                degats_infliges = attaquerBoss(&boss, &joueur1)
+            deschelse:
+                erif (i == 1):
+                    degats_infliges = attaquerBoss(&boss, &joueur2)
+                deschelse:
+                    erif (i == 2):
+                        degats_infliges = attaquerBoss(&boss, &joueur3)
+                    deschelse:
+                        degats_infliges = attaquerBoss(&boss, &joueur4)
+
+            desnote Enregistrer les dégâts dans l'historique (arrays - example6)
+            historique_degats[nb_attaques] = degats_infliges
+            nb_attaques = nb_attaques + 1
+
+        desnote Contre-attaque du boss si toujours vivant
+        erif (boss.estVaincu == 0):
+            peric("")
+            peric("Le {boss.nom} contre-attaque !")
+            
+            desnote Le boss attaque un joueur vivant au hasard (simplifié: tous)
+            joueurs_vivants = 0
+            
+            erif (joueur1.etat == Vivant):
+                subirDegats(&joueur1, boss.degats)
+                erif (joueur1.etat == Vivant):
+                    joueurs_vivants = joueurs_vivants + 1
+            
+            erif (joueur2.etat == Vivant):
+                subirDegats(&joueur2, boss.degats)
+                erif (joueur2.etat == Vivant):
+                    joueurs_vivants = joueurs_vivants + 1
+            
+            erif (joueur3.etat == Vivant):
+                subirDegats(&joueur3, boss.degats)
+                erif (joueur3.etat == Vivant):
+                    joueurs_vivants = joueurs_vivants + 1
+            
+            erif (joueur4.etat == Vivant):
+                subirDegats(&joueur4, boss.degats)
+                erif (joueur4.etat == Vivant):
+                    joueurs_vivants = joueurs_vivants + 1
+
+            desnote Soin occasionnel
+            erif (tour == 2):
+                peric("")
+                peric("*** Un esprit bienveillant soigne l'équipe ! ***")
+                erif (joueur1.etat == Vivant):
+                    soigner(&joueur1, 30)
+                erif (joueur2.etat == Vivant):
+                    soigner(&joueur2, 30)
+                erif (joueur3.etat == Vivant):
+                    soigner(&joueur3, 30)
+                erif (joueur4.etat == Vivant):
+                    soigner(&joueur4, 30)
+
+        peric("")
+        peric("État du {boss.nom}: {boss.vie}/{BOSS_HEALTH} PV")
+        peric("Héros vivants: {joueurs_vivants}/{MAX_PLAYERS}")
+        peric("")
+        tour = tour + 1
+
+    desnote === FIN DU COMBAT ===
+    peric("========================================")
+    
+    erif (boss.estVaincu == 1):
+        peric("=      VICTOIRE HÉROÏQUE !           =")
+        peric("========================================")
+        peric("")
+        peric("Le {boss.nom} a été vaincu en {tour} tours !")
+        
+        desnote Calcul des statistiques finales (example13 - array as parameter)
+        eric total_degats = calculerDegatsTotal(historique_degats, nb_attaques) -> int
+        peric("Dégâts totaux infligés: {total_degats}")
+        peric("Nombre d'attaques: {nb_attaques}")
+        
+        desnote Calcul de la moyenne (arithmétique - example2)
+        eric moyenne = total_degats / nb_attaques -> int
+        peric("Moyenne de dégâts par attaque: {moyenne}")
+        
+        desnote XP pour les survivants
+        eric xp_gagne = 500 -> int
+        peric("")
+        peric("=== Récompenses ===")
+        erif (joueur1.etat == Vivant):
+            gagnerExperience(&joueur1, xp_gagne)
+        erif (joueur2.etat == Vivant):
+            gagnerExperience(&joueur2, xp_gagne)
+        erif (joueur3.etat == Vivant):
+            gagnerExperience(&joueur3, xp_gagne)
+        erif (joueur4.etat == Vivant):
+            gagnerExperience(&joueur4, xp_gagne)
+        
+        peric("")
+        peric("=== État final de l'équipe ===")
+        afficherJoueur(&joueur1)
+        afficherJoueur(&joueur2)
+        afficherJoueur(&joueur3)
+        afficherJoueur(&joueur4)
+        
+        desnote Calcul du score avec puissance (recursion - example12)
+        eric bonus_niveau = puissance(2, joueur1.niveau + joueur2.niveau + joueur3.niveau + joueur4.niveau) -> int
+        eric score_final = total_degats + bonus_niveau * joueurs_vivants -> int
+        peric("")
+        peric("*** SCORE FINAL: {score_final} points ***")
+    deschelse:
+        peric("=         DÉFAITE...                 =")
+        peric("========================================")
+        peric("Tous les héros sont tombés...")
+        peric("Le {boss.nom} règne en maître...")
+
+    peric("")
+    peric("Merci d'avoir joué à {GAME_NAME} !")
+    peric("PI vaut environ {PI} (pour les mages)")
+    
+    deschodt 0
+
+desnote ========================================
+desnote FEATURES USED IN THIS FINAL BOSS TEST:
+desnote ========================================
+desnote - example1:  Basic function, peric, deschodt
+desnote - example2:  Variables (eric), types, arithmetic
+desnote - example3:  aer (for) loop, darius (while) loop
+desnote - example4:  erif/deschelse (if/else)
+desnote - example5:  destruct (structs)
+desnote - example6:  Arrays (int[])
+desnote - example7:  Strings, string interpolation
+desnote - example8:  deschreak (break), deschontinue (continue)
+desnote - example9:  Functions with parameters
+desnote - example10: Constants (cz), enums (desnum)
+desnote - example11: Pointers (*, &)
+desnote - example12: Recursion (puissance)
+desnote - example13: Arrays as function parameters
+desnote - example14: Struct pointers in functions
+desnote ========================================

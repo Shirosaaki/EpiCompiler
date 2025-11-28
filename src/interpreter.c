@@ -70,10 +70,51 @@ Value value_create_struct(const char *type_name)
     return v;
 }
 
-/* Set struct field value */
+/* Set struct field value - handles nested paths like "stats.vie" */
 static void struct_set_field(StructValue *sv, const char *name, Value val)
 {
     if (!sv || !name) return;
+    
+    /* Check if name contains a dot (nested field access) */
+    const char *dot = strchr(name, '.');
+    if (dot) {
+        /* Split into first field and rest of path */
+        size_t first_len = dot - name;
+        char *first_field = malloc(first_len + 1);
+        strncpy(first_field, name, first_len);
+        first_field[first_len] = '\0';
+        const char *rest = dot + 1;
+        
+        /* Get or create the first field (should be a nested struct) */
+        StructValue *nested_sv = NULL;
+        for (size_t i = 0; i < sv->field_count; ++i) {
+            if (strcmp(sv->fields[i].name, first_field) == 0) {
+                Value *v = sv->fields[i].value;
+                if (v->type == VAL_STRUCT && v->data.struct_val) {
+                    nested_sv = v->data.struct_val;
+                }
+                break;
+            }
+        }
+        
+        /* If nested struct doesn't exist, create it */
+        if (!nested_sv) {
+            Value nested_struct = value_create_struct(first_field);
+            nested_sv = nested_struct.data.struct_val;
+            
+            /* Add to parent struct */
+            sv->fields = realloc(sv->fields, (sv->field_count + 1) * sizeof(StructField_RT));
+            sv->fields[sv->field_count].name = strdup(first_field);
+            sv->fields[sv->field_count].value = malloc(sizeof(Value));
+            *sv->fields[sv->field_count].value = nested_struct;
+            sv->field_count++;
+        }
+        
+        /* Recursively set the nested field */
+        free(first_field);
+        struct_set_field(nested_sv, rest, val);
+        return;
+    }
     
     /* Check if field already exists */
     for (size_t i = 0; i < sv->field_count; ++i) {
@@ -92,11 +133,38 @@ static void struct_set_field(StructValue *sv, const char *name, Value val)
     sv->field_count++;
 }
 
-/* Get struct field value */
+/* Get struct field value - handles nested paths like "stats.vie" */
 static Value struct_get_field(StructValue *sv, const char *name)
 {
     if (!sv || !name) return value_create_void();
     
+    /* Check if name contains a dot (nested field access) */
+    const char *dot = strchr(name, '.');
+    if (dot) {
+        /* Split into first field and rest of path */
+        size_t first_len = dot - name;
+        char *first_field = malloc(first_len + 1);
+        strncpy(first_field, name, first_len);
+        first_field[first_len] = '\0';
+        const char *rest = dot + 1;
+        
+        /* Get the first field (should be a nested struct) */
+        for (size_t i = 0; i < sv->field_count; ++i) {
+            if (strcmp(sv->fields[i].name, first_field) == 0) {
+                Value *v = sv->fields[i].value;
+                if (v->type == VAL_STRUCT && v->data.struct_val) {
+                    /* Recursively get the nested field */
+                    free(first_field);
+                    return struct_get_field(v->data.struct_val, rest);
+                }
+                break;
+            }
+        }
+        free(first_field);
+        return value_create_void();
+    }
+    
+    /* Simple field access */
     for (size_t i = 0; i < sv->field_count; ++i) {
         if (strcmp(sv->fields[i].name, name) == 0) {
             /* Return a copy of the value */
