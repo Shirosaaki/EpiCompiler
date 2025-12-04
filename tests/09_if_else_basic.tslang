@@ -1,0 +1,33 @@
+desnote ========================================
+desnote TEST: Basic If-Else (erif/deschelse)
+desnote Tests: Simple conditional branching
+desnote Expected: Correct branch execution
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric x = 15 -> int
+    
+    desnote Simple if
+    erif (x > 10):
+        peric("x is greater than 10")
+    
+    desnote If-else
+    erif (x > 20):
+        peric("x is greater than 20")
+    deschelse:
+        peric("x is NOT greater than 20")
+    
+    desnote Equality check
+    eric y = 42 -> int
+    erif (y == 42):
+        peric("y equals 42 (the answer!)")
+    deschelse:
+        peric("y is not the answer")
+    
+    desnote Test false condition
+    erif (x < 0):
+        peric("This should NOT print")
+    deschelse:
+        peric("x is non-negative")
+    
+    deschodt 0

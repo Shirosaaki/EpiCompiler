@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: ERROR - Unclosed character literal
+desnote Tests: Character without closing quote
+desnote Expected: Lexer error
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric c = 'x -> int
+    deschodt 0

@@ -1,0 +1,68 @@
+desnote ========================================
+desnote TEST: Edge Case - Function edge cases
+desnote Tests: Edge cases with functions
+desnote Expected: Correct function behavior
+desnote ========================================
+
+desnote Function that returns immediately
+Deschodt returnImmediate() -> int
+    deschodt 42
+
+desnote Function with no body operations
+Deschodt emptyBody() -> void
+    eric dummy = 0 -> int
+
+desnote Deep call chain
+Deschodt level3() -> int
+    deschodt 3
+
+Deschodt level2() -> int
+    deschodt level3() + 2
+
+Deschodt level1() -> int
+    deschodt level2() + 1
+
+desnote Function calling itself indirectly (mutual recursion simulation)
+Deschodt even(n -> int) -> int
+    erif (n == 0):
+        deschodt 1
+    deschelse:
+        eric prev = n - 1 -> int
+        eric result = 1 - even(prev) -> int
+        deschodt result
+
+desnote Many parameters
+Deschodt manyParams(a -> int, b -> int, c -> int, d -> int, e -> int) -> int
+    deschodt a + b + c + d + e
+
+desnote Deeply nested function calls
+Deschodt add(a -> int, b -> int) -> int
+    deschodt a + b
+
+Deschodt Eric() -> int
+    peric("=== Function Edge Cases ===")
+    
+    eric r1 = returnImmediate() -> int
+    peric("returnImmediate() = {r1}")
+    
+    emptyBody()
+    peric("emptyBody() called successfully")
+    
+    eric chain = level1() -> int
+    peric("level1() -> level2() -> level3() = {chain}")
+    
+    peric("")
+    peric("Even check (isEven):")
+    aer i in range(0, 6):
+        eric isEven = even(i) -> int
+        peric("  even({i}) = {isEven}")
+    
+    eric many = manyParams(1, 2, 3, 4, 5) -> int
+    peric("")
+    peric("manyParams(1,2,3,4,5) = {many}")
+    
+    desnote Deeply nested calls
+    eric nested = add(add(add(1, 2), add(3, 4)), add(add(5, 6), add(7, 8))) -> int
+    peric("Deeply nested add calls = {nested}")
+    
+    deschodt 0

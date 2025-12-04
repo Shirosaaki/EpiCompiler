@@ -1,0 +1,10 @@
+desnote ========================================
+desnote TEST: ERROR - Invalid keyword
+desnote Tests: Unknown keyword-like identifier
+desnote Expected: Lexer error about unknown keyword
+desnote ========================================
+
+Deschodt Eric() -> int
+    desloop x in range(0, 5):
+        peric("Hello")
+    deschodt 0

@@ -1,0 +1,53 @@
+desnote ========================================
+desnote TEST: Simple Functions
+desnote Tests: Function definition and calling
+desnote Expected: Correct function execution
+desnote ========================================
+
+desnote Simple function with no parameters
+Deschodt greet() -> void
+    peric("Hello from greet!")
+
+desnote Function with parameters
+Deschodt printSum(a -> int, b -> int) -> void
+    eric sum = a + b -> int
+    peric("{a} + {b} = {sum}")
+
+desnote Function that returns int
+Deschodt add(a -> int, b -> int) -> int
+    deschodt a + b
+
+desnote Function that returns expression
+Deschodt multiply(x -> int, y -> int) -> int
+    deschodt x * y
+
+desnote Function with local variables
+Deschodt calculate(n -> int) -> int
+    eric doubled = n * 2 -> int
+    eric result = doubled + 10 -> int
+    deschodt result
+
+Deschodt Eric() -> int
+    peric("=== Function Tests ===")
+    
+    desnote Call void function
+    greet()
+    
+    desnote Call function with parameters
+    printSum(5, 7)
+    
+    desnote Use return values
+    eric sum = add(10, 20) -> int
+    peric("add(10, 20) = {sum}")
+    
+    eric product = multiply(6, 7) -> int
+    peric("multiply(6, 7) = {product}")
+    
+    eric calc = calculate(5) -> int
+    peric("calculate(5) = {calc}")
+    
+    desnote Chain function calls
+    eric chained = add(multiply(2, 3), multiply(4, 5)) -> int
+    peric("add(multiply(2,3), multiply(4,5)) = {chained}")
+    
+    deschodt 0

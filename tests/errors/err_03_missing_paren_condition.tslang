@@ -1,0 +1,11 @@
+desnote ========================================
+desnote TEST: ERROR - Missing parentheses in condition
+desnote Tests: erif without parentheses
+desnote Expected: Lexer error
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric x = 5 -> int
+    erif x > 0:
+        peric("Positive")
+    deschodt 0

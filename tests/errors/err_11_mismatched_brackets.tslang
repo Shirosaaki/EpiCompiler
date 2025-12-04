@@ -1,0 +1,10 @@
+desnote ========================================
+desnote TEST: ERROR - Mismatched brackets
+desnote Tests: Opening [ closed by )
+desnote Expected: Lexer error about mismatched delimiter
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric arr -> int[]
+    arr[0) = 5
+    deschodt 0

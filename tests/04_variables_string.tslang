@@ -1,0 +1,23 @@
+desnote ========================================
+desnote TEST: String Variables
+desnote Tests: string declaration, initialization, escape sequences
+desnote Expected: Various string outputs
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric name = "Alice" -> string
+    eric greeting = "Hello, World!" -> string
+    eric empty = "" -> string
+    eric withSpaces = "   spaces   " -> string
+    eric withNewline = "Line1\nLine2" -> string
+    eric withTab = "Col1\tCol2" -> string
+    eric withQuotes = "He said \"Hello\"" -> string
+    
+    peric("Name: {name}")
+    peric("Greeting: {greeting}")
+    peric("Empty: [{empty}]")
+    peric("With spaces: [{withSpaces}]")
+    peric("With newline: {withNewline}")
+    peric("With tab: {withTab}")
+    
+    deschodt 0

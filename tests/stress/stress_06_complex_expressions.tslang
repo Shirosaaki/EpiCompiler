@@ -1,0 +1,42 @@
+desnote ========================================
+desnote TEST: Stress - Complex expressions
+desnote Tests: Complex nested expressions
+desnote Expected: Correct expression evaluation
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Complex Expression Stress Test ===")
+    
+    eric a = 2 -> int
+    eric b = 3 -> int
+    eric c = 4 -> int
+    eric d = 5 -> int
+    
+    desnote Deeply nested arithmetic
+    eric r1 = ((a + b) * (c + d)) + ((a - b) * (c - d)) -> int
+    peric("((2+3)*(4+5))+((2-3)*(4-5)) = {r1}")
+    
+    eric r2 = a * b + c * d + a * c + b * d -> int
+    peric("a*b + c*d + a*c + b*d = {r2}")
+    
+    eric r3 = (a + b + c + d) * (a + b + c + d) -> int
+    peric("(a+b+c+d)² = {r3}")
+    
+    eric r4 = a * a * a + b * b * b + c * c * c + d * d * d -> int
+    peric("a³ + b³ + c³ + d³ = {r4}")
+    
+    desnote Chained operations
+    eric chain = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 -> int
+    peric("1+2+3+...+10 = {chain}")
+    
+    eric prod = 1 * 2 * 3 * 4 * 5 -> int
+    peric("1*2*3*4*5 = {prod}")
+    
+    desnote Mixed with variables
+    eric x = 10 -> int
+    eric y = 20 -> int
+    eric z = 30 -> int
+    eric complex = (x + y) * z - x * y + z / 10 -> int
+    peric("(10+20)*30 - 10*20 + 30/10 = {complex}")
+    
+    deschodt 0

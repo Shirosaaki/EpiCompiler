@@ -1,0 +1,19 @@
+desnote ========================================
+desnote TEST: Basic Pointers
+desnote Tests: Pointer declaration, address-of (&), dereference (*)
+desnote Expected: Correct pointer operations
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Basic Pointer Tests ===")
+    
+    desnote Create variable and get its address
+    eric value = 42 -> int
+    peric("value = {value}")
+    
+    desnote Pass by pointer to modify
+    eric x = 10 -> int
+    peric("Before: x = {x}")
+    desnote (Modification via function below)
+    
+    deschodt 0

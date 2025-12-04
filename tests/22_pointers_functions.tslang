@@ -1,0 +1,85 @@
+desnote ========================================
+desnote TEST: Pointers with Functions
+desnote Tests: Pass by reference, modify via pointer
+desnote Expected: Correct value modification through pointers
+desnote ========================================
+
+desnote Increment via pointer
+Deschodt increment(ptr -> int*) -> void
+    *ptr = *ptr + 1
+
+desnote Decrement via pointer
+Deschodt decrement(ptr -> int*) -> void
+    *ptr = *ptr - 1
+
+desnote Double via pointer
+Deschodt doubleIt(ptr -> int*) -> void
+    *ptr = *ptr * 2
+
+desnote Square via pointer
+Deschodt square(ptr -> int*) -> void
+    *ptr = *ptr * *ptr
+
+desnote Add to value via pointer
+Deschodt addTo(ptr -> int*, amount -> int) -> void
+    *ptr = *ptr + amount
+
+desnote Multiply value via pointer
+Deschodt multiplyBy(ptr -> int*, factor -> int) -> void
+    *ptr = *ptr * factor
+
+desnote Swap two values
+Deschodt swap(a -> int*, b -> int*) -> void
+    eric temp = *a -> int
+    *a = *b
+    *b = temp
+
+Deschodt Eric() -> int
+    peric("=== Pointer Functions Tests ===")
+    
+    desnote Test increment
+    eric n = 10 -> int
+    peric("Initial n = {n}")
+    increment(&n)
+    peric("After increment: {n}")
+    
+    desnote Test decrement
+    decrement(&n)
+    peric("After decrement: {n}")
+    
+    desnote Test double
+    doubleIt(&n)
+    peric("After doubling: {n}")
+    
+    desnote Test square
+    eric m = 5 -> int
+    peric("")
+    peric("m = {m}")
+    square(&m)
+    peric("After square: {m}")
+    
+    desnote Test addTo
+    addTo(&m, 75)
+    peric("After addTo(75): {m}")
+    
+    desnote Test swap
+    eric a = 100 -> int
+    eric b = 200 -> int
+    peric("")
+    peric("Before swap: a={a}, b={b}")
+    swap(&a, &b)
+    peric("After swap: a={a}, b={b}")
+    
+    desnote Multiple pointer operations
+    peric("")
+    peric("Chain of operations:")
+    eric x = 2 -> int
+    peric("Start: x = {x}")
+    doubleIt(&x)
+    peric("After double: {x}")
+    addTo(&x, 3)
+    peric("After add 3: {x}")
+    square(&x)
+    peric("After square: {x}")
+    
+    deschodt 0

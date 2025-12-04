@@ -1,0 +1,36 @@
+desnote ========================================
+desnote TEST: Edge Case - Empty strings and special chars
+desnote Tests: Edge cases with strings
+desnote Expected: Correct string handling
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== String Edge Cases ===")
+    
+    desnote Empty string
+    eric empty = "" -> string
+    peric("Empty: [{empty}]")
+    
+    desnote Single character
+    eric single = "X" -> string
+    peric("Single: [{single}]")
+    
+    desnote Spaces only
+    eric spaces = "     " -> string
+    peric("Spaces: [{spaces}]")
+    
+    desnote Special characters
+    eric special1 = "Tab:\tEnd" -> string
+    eric special2 = "Newline:\nEnd" -> string
+    peric("With tab: {special1}")
+    peric("With newline: {special2}")
+    
+    desnote Long string
+    eric longStr = "This is a very long string that contains many characters and goes on for quite a while to test string handling" -> string
+    peric("Long: {longStr}")
+    
+    desnote Numbers in string
+    eric withNums = "Value: 12345" -> string
+    peric("{withNums}")
+    
+    deschodt 0

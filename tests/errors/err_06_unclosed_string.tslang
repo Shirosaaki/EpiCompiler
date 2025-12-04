@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: ERROR - Unclosed string
+desnote Tests: String without closing quote
+desnote Expected: Lexer error about unterminated string
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric name = "Hello -> string
+    deschodt 0

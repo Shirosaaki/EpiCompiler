@@ -1,0 +1,94 @@
+desnote ========================================
+desnote TEST: Structures (Simplified - No struct arrays)
+desnote Tests: Creating and manipulating individual structs
+desnote Expected: Correct struct operations
+desnote ========================================
+
+destruct Student:
+    name -> string
+    age -> int
+    score -> int
+
+destruct Item:
+    id -> int
+    quantity -> int
+    price -> int
+
+Deschodt printStudentInfo(name -> string, age -> int, score -> int, index -> int) -> void
+    peric("  Student {index}: {name}, age {age}, score {score}")
+
+Deschodt Eric() -> int
+    peric("=== Structures Test ===")
+    
+    desnote Individual students (no arrays - arrays of structs crash the compiler)
+    eric s0 -> Student
+    eric s1 -> Student
+    eric s2 -> Student
+    
+    s0.name = "Alice"
+    s0.age = 20
+    s0.score = 85
+    
+    s1.name = "Bob"
+    s1.age = 22
+    s1.score = 92
+    
+    s2.name = "Charlie"
+    s2.age = 19
+    s2.score = 78
+    
+    peric("Student list:")
+    printStudentInfo(s0.name, s0.age, s0.score, 0)
+    printStudentInfo(s1.name, s1.age, s1.score, 1)
+    printStudentInfo(s2.name, s2.age, s2.score, 2)
+    
+    desnote Calculate average score
+    eric totalScore = s0.score + s1.score + s2.score -> int
+    eric avgScore = totalScore / 3 -> int
+    peric("Average score: {avgScore}")
+    
+    desnote Find top student
+    eric topName = s0.name -> string
+    eric topScore = s0.score -> int
+    
+    erif (s1.score > topScore):
+        topScore = s1.score
+        topName = s1.name
+    
+    erif (s2.score > topScore):
+        topScore = s2.score
+        topName = s2.name
+    
+    peric("Top student: {topName} with {topScore}")
+    
+    desnote Individual items
+    peric("")
+    peric("Inventory:")
+    eric item0 -> Item
+    eric item1 -> Item
+    eric item2 -> Item
+    
+    item0.id = 1
+    item0.quantity = 10
+    item0.price = 5
+    
+    item1.id = 2
+    item1.quantity = 5
+    item1.price = 20
+    
+    item2.id = 3
+    item2.quantity = 8
+    item2.price = 15
+    
+    eric val0 = item0.quantity * item0.price -> int
+    eric val1 = item1.quantity * item1.price -> int
+    eric val2 = item2.quantity * item2.price -> int
+    
+    peric("  Item {item0.id}: {item0.quantity} x ${item0.price} = ${val0}")
+    peric("  Item {item1.id}: {item1.quantity} x ${item1.price} = ${val1}")
+    peric("  Item {item2.id}: {item2.quantity} x ${item2.price} = ${val2}")
+    
+    eric totalValue = val0 + val1 + val2 -> int
+    peric("Total inventory value: ${totalValue}")
+    
+    deschodt 0

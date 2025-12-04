@@ -1,0 +1,92 @@
+desnote ========================================
+desnote TEST: Integration - Calculator
+desnote Tests: Multi-function calculator
+desnote Expected: Correct calculations
+desnote ========================================
+
+Deschodt add(a -> int, b -> int) -> int
+    deschodt a + b
+
+Deschodt subtract(a -> int, b -> int) -> int
+    deschodt a - b
+
+Deschodt multiply(a -> int, b -> int) -> int
+    deschodt a * b
+
+Deschodt divide(a -> int, b -> int) -> int
+    erif (b == 0):
+        peric("  ERROR: Division by zero!")
+        deschodt 0
+    deschodt a / b
+
+Deschodt power(base -> int, exp -> int) -> int
+    erif (exp == 0):
+        deschodt 1
+    eric result = 1 -> int
+    aer i in range(0, exp):
+        result = result * base
+    deschodt result
+
+Deschodt factorial(n -> int) -> int
+    erif (n <= 1):
+        deschodt 1
+    deschodt n * factorial(n - 1)
+
+Deschodt absolute(n -> int) -> int
+    erif (n < 0):
+        deschodt 0 - n
+    deschodt n
+
+Deschodt max(a -> int, b -> int) -> int
+    erif (a > b):
+        deschodt a
+    deschodt b
+
+Deschodt min(a -> int, b -> int) -> int
+    erif (a < b):
+        deschodt a
+    deschodt b
+
+Deschodt Eric() -> int
+    peric("=== Calculator Integration Test ===")
+    
+    eric x = 15 -> int
+    eric y = 4 -> int
+    
+    peric("x = {x}, y = {y}")
+    peric("")
+    
+    eric r1 = add(x, y) -> int
+    peric("add({x}, {y}) = {r1}")
+    
+    eric r2 = subtract(x, y) -> int
+    peric("subtract({x}, {y}) = {r2}")
+    
+    eric r3 = multiply(x, y) -> int
+    peric("multiply({x}, {y}) = {r3}")
+    
+    eric r4 = divide(x, y) -> int
+    peric("divide({x}, {y}) = {r4}")
+    
+    eric r5 = power(2, 10) -> int
+    peric("power(2, 10) = {r5}")
+    
+    eric r6 = factorial(6) -> int
+    peric("factorial(6) = {r6}")
+    
+    eric r7 = absolute(-42) -> int
+    peric("absolute(-42) = {r7}")
+    
+    eric r8 = max(x, y) -> int
+    peric("max({x}, {y}) = {r8}")
+    
+    eric r9 = min(x, y) -> int
+    peric("min({x}, {y}) = {r9}")
+    
+    desnote Division by zero test
+    peric("")
+    peric("Division by zero test:")
+    eric r10 = divide(10, 0) -> int
+    peric("Result: {r10}")
+    
+    deschodt 0

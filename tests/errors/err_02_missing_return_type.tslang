@@ -1,0 +1,12 @@
+desnote ========================================
+desnote TEST: ERROR - Missing function return type
+desnote Tests: Function without -> returnType
+desnote Expected: Parser error
+desnote ========================================
+
+Deschodt test()
+    peric("Hello")
+
+Deschodt Eric() -> int
+    test()
+    deschodt 0

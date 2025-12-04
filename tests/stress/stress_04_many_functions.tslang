@@ -1,0 +1,83 @@
+desnote ========================================
+desnote TEST: Stress - Many functions
+desnote Tests: Many function definitions
+desnote Expected: Correct handling of many functions
+desnote ========================================
+
+Deschodt f01() -> int
+    deschodt 1
+
+Deschodt f02() -> int
+    deschodt 2
+
+Deschodt f03() -> int
+    deschodt 3
+
+Deschodt f04() -> int
+    deschodt 4
+
+Deschodt f05() -> int
+    deschodt 5
+
+Deschodt f06() -> int
+    deschodt 6
+
+Deschodt f07() -> int
+    deschodt 7
+
+Deschodt f08() -> int
+    deschodt 8
+
+Deschodt f09() -> int
+    deschodt 9
+
+Deschodt f10() -> int
+    deschodt 10
+
+Deschodt add(a -> int, b -> int) -> int
+    deschodt a + b
+
+Deschodt sub(a -> int, b -> int) -> int
+    deschodt a - b
+
+Deschodt mul(a -> int, b -> int) -> int
+    deschodt a * b
+
+Deschodt div(a -> int, b -> int) -> int
+    deschodt a / b
+
+Deschodt square(n -> int) -> int
+    deschodt n * n
+
+Deschodt cube(n -> int) -> int
+    deschodt n * n * n
+
+Deschodt Eric() -> int
+    peric("=== Many Functions Stress Test ===")
+    
+    eric sum = f01() + f02() + f03() + f04() + f05() -> int
+    eric sum2 = f06() + f07() + f08() + f09() + f10() -> int
+    eric total = sum + sum2 -> int
+    
+    peric("f01+f02+f03+f04+f05 = {sum}")
+    peric("f06+f07+f08+f09+f10 = {sum2}")
+    peric("Total = {total}")
+    
+    eric r1 = add(10, 5) -> int
+    eric r2 = sub(10, 5) -> int
+    eric r3 = mul(10, 5) -> int
+    eric r4 = div(10, 5) -> int
+    
+    peric("")
+    peric("add(10,5) = {r1}")
+    peric("sub(10,5) = {r2}")
+    peric("mul(10,5) = {r3}")
+    peric("div(10,5) = {r4}")
+    
+    eric sq = square(7) -> int
+    eric cb = cube(3) -> int
+    peric("")
+    peric("square(7) = {sq}")
+    peric("cube(3) = {cb}")
+    
+    deschodt 0

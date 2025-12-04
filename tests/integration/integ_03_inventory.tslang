@@ -1,0 +1,112 @@
+desnote ========================================
+desnote TEST: Integration - Inventory System (Simplified)
+desnote Tests: Struct operations without struct arrays
+desnote Expected: Correct inventory management
+desnote ========================================
+
+cz LOW_STOCK_THRESHOLD = 5 -> int
+
+destruct Item:
+    id -> int
+    name -> string
+    quantity -> int
+    price -> int
+
+Deschodt printItemInfo(id -> int, name -> string, quantity -> int, price -> int) -> void
+    eric total = quantity * price -> int
+    peric("  [{id}] {name}: {quantity} x ${price} = ${total}")
+
+Deschodt Eric() -> int
+    peric("=== Inventory Management System ===")
+    peric("Low stock threshold: {LOW_STOCK_THRESHOLD}")
+    peric("")
+    
+    desnote Individual items instead of array (struct arrays crash compiler)
+    eric item0 -> Item
+    eric item1 -> Item
+    eric item2 -> Item
+    eric item3 -> Item
+    
+    desnote Initialize items directly
+    item0.id = 1
+    item0.name = "Laptop"
+    item0.quantity = 10
+    item0.price = 999
+    
+    item1.id = 2
+    item1.name = "Mouse"
+    item1.quantity = 50
+    item1.price = 25
+    
+    item2.id = 3
+    item2.name = "Keyboard"
+    item2.quantity = 30
+    item2.price = 75
+    
+    item3.id = 4
+    item3.name = "Monitor"
+    item3.quantity = 3
+    item3.price = 350
+    
+    peric("Current Inventory:")
+    printItemInfo(item0.id, item0.name, item0.quantity, item0.price)
+    printItemInfo(item1.id, item1.name, item1.quantity, item1.price)
+    printItemInfo(item2.id, item2.name, item2.quantity, item2.price)
+    printItemInfo(item3.id, item3.name, item3.quantity, item3.price)
+    
+    eric val0 = item0.quantity * item0.price -> int
+    eric val1 = item1.quantity * item1.price -> int
+    eric val2 = item2.quantity * item2.price -> int
+    eric val3 = item3.quantity * item3.price -> int
+    eric totalValue = val0 + val1 + val2 + val3 -> int
+    peric("")
+    peric("Total inventory value: ${totalValue}")
+    
+    desnote Check low stock
+    peric("")
+    peric("Low stock items:")
+    erif (item0.quantity < LOW_STOCK_THRESHOLD):
+        peric("  WARNING: {item0.name} is low ({item0.quantity})")
+    erif (item1.quantity < LOW_STOCK_THRESHOLD):
+        peric("  WARNING: {item1.name} is low ({item1.quantity})")
+    erif (item2.quantity < LOW_STOCK_THRESHOLD):
+        peric("  WARNING: {item2.name} is low ({item2.quantity})")
+    erif (item3.quantity < LOW_STOCK_THRESHOLD):
+        peric("  WARNING: {item3.name} is low ({item3.quantity})")
+    
+    desnote Perform transactions
+    peric("")
+    peric("Performing transactions:")
+    
+    desnote Add stock to Monitor
+    item3.quantity = item3.quantity + 10
+    peric("  Added 10 to Monitor. New qty: {item3.quantity}")
+    
+    desnote Remove stock from Laptop
+    item0.quantity = item0.quantity - 5
+    peric("  Removed 5 from Laptop. New qty: {item0.quantity}")
+    
+    desnote Try to remove too much from Mouse (check first)
+    erif (item1.quantity >= 60):
+        item1.quantity = item1.quantity - 60
+        peric("  Removed 60 from Mouse. New qty: {item1.quantity}")
+    deschelse:
+        peric("  ERROR: Not enough stock for Mouse!")
+    
+    desnote Final state
+    peric("")
+    peric("Updated Inventory:")
+    printItemInfo(item0.id, item0.name, item0.quantity, item0.price)
+    printItemInfo(item1.id, item1.name, item1.quantity, item1.price)
+    printItemInfo(item2.id, item2.name, item2.quantity, item2.price)
+    printItemInfo(item3.id, item3.name, item3.quantity, item3.price)
+    
+    val0 = item0.quantity * item0.price
+    val1 = item1.quantity * item1.price
+    val2 = item2.quantity * item2.price
+    val3 = item3.quantity * item3.price
+    eric newTotal = val0 + val1 + val2 + val3 -> int
+    peric("")
+    peric("New total inventory value: ${newTotal}")
+    
+    deschodt 0

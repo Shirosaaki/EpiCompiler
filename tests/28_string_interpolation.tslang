@@ -1,0 +1,51 @@
+desnote ========================================
+desnote TEST: String Interpolation
+desnote Tests: Variable interpolation in strings
+desnote Expected: Correct string formatting
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== String Interpolation Tests ===")
+    
+    desnote Basic interpolation
+    eric name = "Alice" -> string
+    eric age = 25 -> int
+    peric("My name is {name} and I am {age} years old.")
+    
+    desnote Multiple variables
+    eric a = 10 -> int
+    eric b = 20 -> int
+    eric c = 30 -> int
+    peric("a={a}, b={b}, c={c}")
+    
+    desnote Expressions in interpolation (if supported)
+    eric x = 5 -> int
+    eric y = 3 -> int
+    eric sum = x + y -> int
+    peric("{x} + {y} = {sum}")
+    
+    desnote Mixed types
+    eric temperature = 98.6 -> float
+    eric city = "Paris" -> string
+    eric year = 2025 -> int
+    peric("In {city}, year {year}, temperature was {temperature}")
+    
+    desnote Empty and special cases
+    eric empty = "" -> string
+    peric("Empty: [{empty}]")
+    
+    desnote Nested braces (text)
+    peric("Value in braces: value = {x}")
+    
+    desnote Multiple same variable
+    peric("{name}, {name}, {name}!")
+    
+    desnote Long string with many interpolations
+    eric v1 = 1 -> int
+    eric v2 = 2 -> int
+    eric v3 = 3 -> int
+    eric v4 = 4 -> int
+    eric v5 = 5 -> int
+    peric("Values: {v1}, {v2}, {v3}, {v4}, {v5}")
+    
+    deschodt 0

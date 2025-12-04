@@ -1,0 +1,43 @@
+desnote ========================================
+desnote TEST: Stress - Many variables
+desnote Tests: Many variable declarations
+desnote Expected: Correct handling of many variables
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Many Variables Stress Test ===")
+    
+    eric v01 = 1 -> int
+    eric v02 = 2 -> int
+    eric v03 = 3 -> int
+    eric v04 = 4 -> int
+    eric v05 = 5 -> int
+    eric v06 = 6 -> int
+    eric v07 = 7 -> int
+    eric v08 = 8 -> int
+    eric v09 = 9 -> int
+    eric v10 = 10 -> int
+    eric v11 = 11 -> int
+    eric v12 = 12 -> int
+    eric v13 = 13 -> int
+    eric v14 = 14 -> int
+    eric v15 = 15 -> int
+    eric v16 = 16 -> int
+    eric v17 = 17 -> int
+    eric v18 = 18 -> int
+    eric v19 = 19 -> int
+    eric v20 = 20 -> int
+    
+    eric sum = v01 + v02 + v03 + v04 + v05 + v06 + v07 + v08 + v09 + v10 -> int
+    eric sum2 = v11 + v12 + v13 + v14 + v15 + v16 + v17 + v18 + v19 + v20 -> int
+    eric total = sum + sum2 -> int
+    
+    peric("Sum of v01-v10: {sum}")
+    peric("Sum of v11-v20: {sum2}")
+    peric("Total (1+2+...+20): {total}")
+    
+    desnote Expected: 210 (sum of 1 to 20)
+    eric expected = 20 * 21 / 2 -> int
+    peric("Expected (n*(n+1)/2): {expected}")
+    
+    deschodt 0

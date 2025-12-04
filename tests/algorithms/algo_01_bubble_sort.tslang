@@ -1,0 +1,41 @@
+desnote ========================================
+desnote TEST: Algorithm - Bubble Sort
+desnote Tests: Sorting algorithm implementation
+desnote Expected: Array sorted in ascending order
+desnote ========================================
+
+Deschodt bubbleSort(arr -> int[], size -> int) -> void
+    aer i in range(0, size):
+        aer j in range(0, size - 1 - i):
+            erif (arr[j] > arr[j + 1]):
+                eric temp = arr[j] -> int
+                arr[j] = arr[j + 1]
+                arr[j + 1] = temp
+
+Deschodt printArray(arr -> int[], size -> int) -> void
+    aer i in range(0, size):
+        peric("  [{i}] = {arr[i]}")
+
+Deschodt Eric() -> int
+    peric("=== Bubble Sort Test ===")
+    
+    eric arr -> int[8]
+    arr[0] = 64
+    arr[1] = 34
+    arr[2] = 25
+    arr[3] = 12
+    arr[4] = 22
+    arr[5] = 11
+    arr[6] = 90
+    arr[7] = 1
+    
+    peric("Before sorting:")
+    printArray(arr, 8)
+    
+    bubbleSort(arr, 8)
+    
+    peric("")
+    peric("After sorting:")
+    printArray(arr, 8)
+    
+    deschodt 0

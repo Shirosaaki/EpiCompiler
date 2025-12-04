@@ -1,0 +1,41 @@
+desnote ========================================
+desnote TEST: Nested If-Else
+desnote Tests: Multiple levels of conditional nesting
+desnote Expected: Correct nested branch execution
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric score = 75 -> int
+    
+    peric("Testing score: {score}")
+    
+    desnote Grade classification with nested if
+    erif (score >= 90):
+        peric("Grade: A (Excellent)")
+    deschelse:
+        erif (score >= 80):
+            peric("Grade: B (Good)")
+        deschelse:
+            erif (score >= 70):
+                peric("Grade: C (Average)")
+            deschelse:
+                erif (score >= 60):
+                    peric("Grade: D (Below Average)")
+                deschelse:
+                    peric("Grade: F (Fail)")
+    
+    desnote Deep nesting test
+    eric a = 5 -> int
+    eric b = 10 -> int
+    eric c = 15 -> int
+    
+    erif (a > 0):
+        peric("Level 1: a is positive")
+        erif (b > a):
+            peric("Level 2: b > a")
+            erif (c > b):
+                peric("Level 3: c > b")
+                erif (c == 15):
+                    peric("Level 4: c equals 15")
+    
+    deschodt 0

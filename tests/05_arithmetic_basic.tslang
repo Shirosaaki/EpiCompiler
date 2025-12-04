@@ -1,0 +1,38 @@
+desnote ========================================
+desnote TEST: Basic Arithmetic Operations
+desnote Tests: +, -, *, /, % operators
+desnote Expected: Correct arithmetic results
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric a = 10 -> int
+    eric b = 3 -> int
+    
+    desnote Addition
+    eric sum = a + b -> int
+    peric("{a} + {b} = {sum}")
+    
+    desnote Subtraction
+    eric diff = a - b -> int
+    peric("{a} - {b} = {diff}")
+    
+    desnote Multiplication
+    eric prod = a * b -> int
+    peric("{a} * {b} = {prod}")
+    
+    desnote Division
+    eric quot = a / b -> int
+    peric("{a} / {b} = {quot}")
+    
+    desnote Modulo
+    eric mod = a - (a / b) * b -> int
+    peric("{a} mod {b} = {mod}")
+    
+    deschodt 0
+
+desnote Expected output:
+desnote 10 + 3 = 13
+desnote 10 - 3 = 7
+desnote 10 * 3 = 30
+desnote 10 / 3 = 3
+desnote 10 mod 3 = 1

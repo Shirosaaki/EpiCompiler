@@ -1,0 +1,35 @@
+desnote ========================================
+desnote TEST: For Loop (aer)
+desnote Tests: Basic for loop with range
+desnote Expected: Correct iteration
+desnote ========================================
+
+Deschodt Eric() -> int
+    desnote Basic loop 0 to 4
+    peric("Loop 0 to 4:")
+    aer i in range(0, 5):
+        peric("  i = {i}")
+    
+    desnote Loop starting from non-zero
+    peric("Loop 5 to 9:")
+    aer i in range(5, 10):
+        peric("  i = {i}")
+    
+    desnote Loop with step (simulated)
+    peric("Even numbers 0 to 8:")
+    aer i in range(0, 5):
+        eric even = i * 2 -> int
+        peric("  {even}")
+    
+    desnote Single iteration
+    peric("Single iteration (0 to 0):")
+    aer i in range(0, 1):
+        peric("  i = {i}")
+    
+    desnote Empty loop (should not print anything)
+    peric("Empty loop (5 to 5 - should print nothing inside):")
+    aer i in range(5, 5):
+        peric("  This should not print")
+    peric("Done")
+    
+    deschodt 0

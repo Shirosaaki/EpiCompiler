@@ -1,0 +1,59 @@
+desnote ========================================
+desnote TEST: Algorithm - Reverse array
+desnote Tests: In-place array reversal
+desnote Expected: Array elements reversed
+desnote ========================================
+
+Deschodt reverseArray(arr -> int[], size -> int) -> void
+    eric left = 0 -> int
+    eric right = size - 1 -> int
+    darius (left < right):
+        eric temp = arr[left] -> int
+        arr[left] = arr[right]
+        arr[right] = temp
+        left = left + 1
+        right = right - 1
+
+Deschodt printArray(arr -> int[], size -> int) -> void
+    aer i in range(0, size):
+        peric("  [{i}] = {arr[i]}")
+
+Deschodt Eric() -> int
+    peric("=== Reverse Array Test ===")
+    
+    eric arr -> int[7]
+    arr[0] = 1
+    arr[1] = 2
+    arr[2] = 3
+    arr[3] = 4
+    arr[4] = 5
+    arr[5] = 6
+    arr[6] = 7
+    
+    peric("Original array:")
+    printArray(arr, 7)
+    
+    reverseArray(arr, 7)
+    
+    peric("")
+    peric("Reversed array:")
+    printArray(arr, 7)
+    
+    desnote Test even-sized array
+    peric("")
+    eric arr2 -> int[4]
+    arr2[0] = 10
+    arr2[1] = 20
+    arr2[2] = 30
+    arr2[3] = 40
+    
+    peric("Even-sized array:")
+    printArray(arr2, 4)
+    
+    reverseArray(arr2, 4)
+    
+    peric("")
+    peric("Reversed:")
+    printArray(arr2, 4)
+    
+    deschodt 0

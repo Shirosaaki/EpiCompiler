@@ -1,0 +1,67 @@
+desnote ========================================
+desnote TEST: Basic Structures (destruct)
+desnote Tests: Structure definition, field access
+desnote Expected: Correct structure operations
+desnote ========================================
+
+desnote Define structures
+destruct Point:
+    x -> int
+    y -> int
+
+destruct Person:
+    name -> string
+    age -> int
+
+destruct Rectangle:
+    x -> int
+    y -> int
+    width -> int
+    height -> int
+
+Deschodt Eric() -> int
+    peric("=== Basic Structure Tests ===")
+    
+    desnote Create and use Point
+    eric p1 -> Point
+    p1.x = 10
+    p1.y = 20
+    peric("Point p1: ({p1.x}, {p1.y})")
+    
+    eric p2 -> Point
+    p2.x = 5
+    p2.y = 15
+    peric("Point p2: ({p2.x}, {p2.y})")
+    
+    desnote Calculate distance squared
+    eric dx = p2.x - p1.x -> int
+    eric dy = p2.y - p1.y -> int
+    eric distSq = dx * dx + dy * dy -> int
+    peric("Distance squared: {distSq}")
+    
+    desnote Create and use Person
+    peric("")
+    eric alice -> Person
+    alice.name = "Alice"
+    alice.age = 25
+    peric("Person: {alice.name}, age {alice.age}")
+    
+    desnote Modify structure fields
+    alice.age = 26
+    peric("After birthday: {alice.name}, age {alice.age}")
+    
+    desnote Rectangle
+    peric("")
+    eric rect -> Rectangle
+    rect.x = 0
+    rect.y = 0
+    rect.width = 100
+    rect.height = 50
+    
+    peric("Rectangle: pos({rect.x},{rect.y}), size({rect.width}x{rect.height})")
+    eric area = rect.width * rect.height -> int
+    eric perimeter = 2 * (rect.width + rect.height) -> int
+    peric("Area: {area}")
+    peric("Perimeter: {perimeter}")
+    
+    deschodt 0

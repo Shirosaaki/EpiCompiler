@@ -1,0 +1,20 @@
+desnote ========================================
+desnote TEST: Float Variables
+desnote Tests: float declaration, initialization, assignment
+desnote Expected: Various float operations
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric pi = 3.14159 -> float
+    eric temperature = 98.6 -> float
+    eric negative = -273.15 -> float
+    eric zero = 0.0 -> float
+    eric tiny = 0.001 -> float
+    
+    peric("pi = {pi}")
+    peric("temperature = {temperature}")
+    peric("negative = {negative}")
+    peric("zero = {zero}")
+    peric("tiny = {tiny}")
+    
+    deschodt 0

@@ -1,0 +1,65 @@
+desnote ========================================
+desnote TEST: 1D Arrays
+desnote Tests: Basic array declaration and access
+desnote Expected: Correct array operations
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== 1D Array Tests ===")
+    
+    desnote Declare and initialize array
+    eric numbers -> int[]
+    numbers[0] = 10
+    numbers[1] = 20
+    numbers[2] = 30
+    numbers[3] = 40
+    numbers[4] = 50
+    
+    peric("Array contents:")
+    aer i in range(0, 5):
+        peric("  numbers[{i}] = {numbers[i]}")
+    
+    desnote Array with size declaration
+    eric scores -> int[5]
+    scores[0] = 85
+    scores[1] = 92
+    scores[2] = 78
+    scores[3] = 95
+    scores[4] = 88
+    
+    peric("")
+    peric("Scores array:")
+    aer i in range(0, 5):
+        peric("  scores[{i}] = {scores[i]}")
+    
+    desnote Calculate sum
+    eric sum = 0 -> int
+    aer i in range(0, 5):
+        sum = sum + scores[i]
+    peric("Sum of scores: {sum}")
+    
+    desnote Find max
+    eric max = scores[0] -> int
+    aer i in range(1, 5):
+        erif (scores[i] > max):
+            max = scores[i]
+    peric("Max score: {max}")
+    
+    desnote Array modification
+    peric("")
+    peric("Modifying numbers[2]...")
+    numbers[2] = 999
+    peric("numbers[2] = {numbers[2]}")
+    
+    desnote Sparse array (non-contiguous indices)
+    eric sparse -> int[]
+    sparse[0] = 1
+    sparse[10] = 100
+    sparse[100] = 1000
+    peric("")
+    peric("Sparse array:")
+    peric("  sparse[0] = {sparse[0]}")
+    peric("  sparse[10] = {sparse[10]}")
+    peric("  sparse[100] = {sparse[100]}")
+    
+    deschodt 0

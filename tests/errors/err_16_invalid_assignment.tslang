@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: ERROR - Assignment to non-variable
+desnote Tests: Assignment must be to variable
+desnote Expected: Lexer error
+desnote ========================================
+
+Deschodt Eric() -> int
+    5 = 10
+    deschodt 0

@@ -1,0 +1,41 @@
+desnote ========================================
+desnote TEST: 3D Arrays
+desnote Tests: Three-dimensional array operations
+desnote Expected: Correct 3D array access
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== 3D Array Tests ===")
+    
+    desnote Create 3D array (2x2x2)
+    eric cube -> int[]
+    cube[0] -> int[]
+    cube[0][0] -> int[]
+    cube[0][0][0] = 1
+    cube[0][0][1] = 2
+    cube[0][1] -> int[]
+    cube[0][1][0] = 3
+    cube[0][1][1] = 4
+    cube[1] -> int[]
+    cube[1][0] -> int[]
+    cube[1][0][0] = 5
+    cube[1][0][1] = 6
+    cube[1][1] -> int[]
+    cube[1][1][0] = 7
+    cube[1][1][1] = 8
+    
+    peric("2x2x2 Cube:")
+    aer i in range(0, 2):
+        aer j in range(0, 2):
+            aer k in range(0, 2):
+                peric("  cube[{i}][{j}][{k}] = {cube[i][j][k]}")
+    
+    desnote Sum all elements
+    eric total = 0 -> int
+    aer i in range(0, 2):
+        aer j in range(0, 2):
+            aer k in range(0, 2):
+                total = total + cube[i][j][k]
+    peric("Sum of all elements: {total}")
+    
+    deschodt 0

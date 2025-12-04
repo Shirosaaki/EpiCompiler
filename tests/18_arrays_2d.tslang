@@ -1,0 +1,49 @@
+desnote ========================================
+desnote TEST: 2D Arrays
+desnote Tests: Multi-dimensional array operations
+desnote Expected: Correct 2D array access
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== 2D Array Tests ===")
+    
+    desnote Create 2D array (3x3)
+    eric matrix -> int[]
+    matrix[0] -> int[]
+    matrix[0][0] = 1
+    matrix[0][1] = 2
+    matrix[0][2] = 3
+    matrix[1] -> int[]
+    matrix[1][0] = 4
+    matrix[1][1] = 5
+    matrix[1][2] = 6
+    matrix[2] -> int[]
+    matrix[2][0] = 7
+    matrix[2][1] = 8
+    matrix[2][2] = 9
+    
+    peric("3x3 Matrix:")
+    aer i in range(0, 3):
+        aer j in range(0, 3):
+            peric("  matrix[{i}][{j}] = {matrix[i][j]}")
+    
+    desnote Sum diagonal
+    eric diagSum = 0 -> int
+    aer i in range(0, 3):
+        diagSum = diagSum + matrix[i][i]
+    peric("Diagonal sum: {diagSum}")
+    
+    desnote Modify element
+    matrix[1][1] = 100
+    peric("After matrix[1][1] = 100: {matrix[1][1]}")
+    
+    desnote Row sum
+    peric("")
+    peric("Row sums:")
+    aer i in range(0, 3):
+        eric rowSum = 0 -> int
+        aer j in range(0, 3):
+            rowSum = rowSum + matrix[i][j]
+        peric("  Row {i} sum: {rowSum}")
+    
+    deschodt 0

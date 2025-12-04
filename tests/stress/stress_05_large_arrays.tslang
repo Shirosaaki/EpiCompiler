@@ -1,0 +1,41 @@
+desnote ========================================
+desnote TEST: Stress - Large arrays
+desnote Tests: Large array operations
+desnote Expected: Correct handling of large arrays
+desnote ========================================
+
+Deschodt sumArray(arr -> int[], size -> int) -> int
+    eric total = 0 -> int
+    aer i in range(0, size):
+        total = total + arr[i]
+    deschodt total
+
+Deschodt Eric() -> int
+    peric("=== Large Array Stress Test ===")
+    
+    eric arr -> int[100]
+    
+    desnote Fill array with values
+    aer i in range(0, 100):
+        arr[i] = i
+    
+    eric sum = sumArray(arr, 100) -> int
+    peric("Sum of 0-99: {sum}")
+    eric expected = 99 * 100 / 2 -> int
+    peric("Expected (n*(n-1)/2): {expected}")
+    
+    desnote Modify and recalculate
+    aer i in range(0, 100):
+        arr[i] = arr[i] * 2
+    
+    eric sum2 = sumArray(arr, 100) -> int
+    peric("Sum after doubling: {sum2}")
+    
+    desnote Access specific elements
+    peric("")
+    peric("Sample values:")
+    peric("  arr[0] = {arr[0]}")
+    peric("  arr[50] = {arr[50]}")
+    peric("  arr[99] = {arr[99]}")
+    
+    deschodt 0

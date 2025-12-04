@@ -1,0 +1,91 @@
+desnote ========================================
+desnote TEST: Structures with Functions
+desnote Tests: Passing structures to functions
+desnote Expected: Correct structure manipulation
+desnote ========================================
+
+destruct Vector2D:
+    x -> int
+    y -> int
+
+destruct Counter:
+    value -> int
+    maxValue -> int
+    name -> string
+
+desnote Initialize vector
+Deschodt initVector(v -> Vector2D*, x -> int, y -> int) -> void
+    v.x = x
+    v.y = y
+
+desnote Add vectors
+Deschodt addVectors(result -> Vector2D*, a -> Vector2D*, b -> Vector2D*) -> void
+    result.x = a.x + b.x
+    result.y = a.y + b.y
+
+desnote Scale vector
+Deschodt scaleVector(v -> Vector2D*, factor -> int) -> void
+    v.x = v.x * factor
+    v.y = v.y * factor
+
+desnote Get magnitude squared
+Deschodt magnitudeSquared(v -> Vector2D*) -> int
+    deschodt v.x * v.x + v.y * v.y
+
+desnote Dot product
+Deschodt dotProduct(a -> Vector2D*, b -> Vector2D*) -> int
+    deschodt a.x * b.x + a.y * b.y
+
+desnote Counter operations
+Deschodt incrementCounter(c -> Counter*) -> void
+    erif (c.value < c.maxValue):
+        c.value = c.value + 1
+        peric("  {c.name}: {c.value}")
+    deschelse:
+        peric("  {c.name}: MAX REACHED ({c.maxValue})")
+
+Deschodt resetCounter(c -> Counter*) -> void
+    c.value = 0
+    peric("  {c.name}: reset to 0")
+
+Deschodt Eric() -> int
+    peric("=== Structures with Functions ===")
+    
+    desnote Vector operations
+    eric v1 -> Vector2D
+    eric v2 -> Vector2D
+    eric v3 -> Vector2D
+    
+    initVector(&v1, 3, 4)
+    initVector(&v2, 1, 2)
+    
+    peric("v1 = ({v1.x}, {v1.y})")
+    peric("v2 = ({v2.x}, {v2.y})")
+    
+    addVectors(&v3, &v1, &v2)
+    peric("v1 + v2 = ({v3.x}, {v3.y})")
+    
+    eric magSq = magnitudeSquared(&v1) -> int
+    peric("|v1|² = {magSq}")
+    
+    eric dot = dotProduct(&v1, &v2) -> int
+    peric("v1 · v2 = {dot}")
+    
+    scaleVector(&v1, 2)
+    peric("v1 * 2 = ({v1.x}, {v1.y})")
+    
+    desnote Counter operations
+    peric("")
+    peric("Counter tests:")
+    eric counter -> Counter
+    counter.value = 0
+    counter.maxValue = 3
+    counter.name = "MyCounter"
+    
+    aer i in range(0, 5):
+        incrementCounter(&counter)
+    
+    resetCounter(&counter)
+    incrementCounter(&counter)
+    
+    deschodt 0

@@ -1,0 +1,85 @@
+desnote ========================================
+desnote TEST: Integration - Student Management
+desnote Tests: Complete struct-based application
+desnote Expected: Correct student data handling
+desnote ========================================
+
+destruct Student:
+    name -> string
+    id -> int
+    score -> int
+    grade -> string
+
+Deschodt getGrade(score -> int) -> string
+    erif (score >= 90):
+        deschodt "A"
+    erif (score >= 80):
+        deschodt "B"
+    erif (score >= 70):
+        deschodt "C"
+    erif (score >= 60):
+        deschodt "D"
+    deschodt "F"
+
+Deschodt printStudentInfo(id -> int, name -> string, score -> int, grade -> string) -> void
+    peric("  ID: {id}")
+    peric("  Name: {name}")
+    peric("  Score: {score}")
+    peric("  Grade: {grade}")
+
+Deschodt Eric() -> int
+    peric("=== Student Management System ===")
+    
+    eric students -> Student[3]
+    
+    desnote Initialize student 0
+    students[0].name = "Alice"
+    students[0].id = 1001
+    students[0].score = 92
+    students[0].grade = "A"
+    
+    desnote Initialize student 1
+    students[1].name = "Bob"
+    students[1].id = 1002
+    students[1].score = 78
+    students[1].grade = "C"
+    
+    desnote Initialize student 2
+    students[2].name = "Charlie"
+    students[2].id = 1003
+    students[2].score = 55
+    students[2].grade = "F"
+    
+    peric("")
+    peric("Initial student data:")
+    peric("")
+    aer i in range(0, 3):
+        peric("Student {i}:")
+        printStudentInfo(students[i].id, students[i].name, students[i].score, students[i].grade)
+        peric("")
+    
+    desnote Update Bob's score
+    peric("Updating Bob's score to 85...")
+    students[1].score = 85
+    students[1].grade = "B"
+    
+    peric("")
+    peric("Updated student 1:")
+    printStudentInfo(students[1].id, students[1].name, students[1].score, students[1].grade)
+    
+    desnote Calculate class average
+    peric("")
+    eric total = 0 -> int
+    aer i in range(0, 3):
+        total = total + students[i].score
+    eric avg = total / 3 -> int
+    peric("Class average score: {avg}")
+    
+    desnote Find top student
+    eric topIdx = 0 -> int
+    aer i in range(1, 3):
+        erif (students[i].score > students[topIdx].score):
+            topIdx = i
+    peric("Top student: {students[topIdx].name} with score {students[topIdx].score}")
+    
+    deschodt 0

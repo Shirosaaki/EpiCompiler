@@ -1,0 +1,40 @@
+desnote ========================================
+desnote TEST: Stress - Large loops
+desnote Tests: Many loop iterations
+desnote Expected: Correct handling of large iterations
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Large Loop Stress Test ===")
+    
+    peric("1000 iterations:")
+    eric sum1 = 0 -> int
+    aer i in range(0, 1000):
+        sum1 = sum1 + 1
+    peric("  Count: {sum1}")
+    
+    peric("")
+    peric("Sum 0 to 999:")
+    eric sum2 = 0 -> int
+    aer i in range(0, 1000):
+        sum2 = sum2 + i
+    peric("  Sum: {sum2}")
+    
+    peric("")
+    peric("Nested 100x100:")
+    eric total = 0 -> int
+    aer i in range(0, 100):
+        aer j in range(0, 100):
+            total = total + 1
+    peric("  Total iterations: {total}")
+    
+    peric("")
+    peric("Triple nested 10x10x10:")
+    eric cubic = 0 -> int
+    aer i in range(0, 10):
+        aer j in range(0, 10):
+            aer k in range(0, 10):
+                cubic = cubic + 1
+    peric("  Total iterations: {cubic}")
+    
+    deschodt 0

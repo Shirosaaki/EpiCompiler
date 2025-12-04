@@ -1,0 +1,30 @@
+desnote ========================================
+desnote TEST: Edge Case - Large numbers
+desnote Tests: Large integer operations
+desnote Expected: Correct handling of large values
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Large Number Tests ===")
+    
+    eric large1 = 1000000 -> int
+    eric large2 = 999999 -> int
+    eric large3 = 123456789 -> int
+    
+    peric("large1 = {large1}")
+    peric("large2 = {large2}")
+    peric("large3 = {large3}")
+    
+    eric sum = large1 + large2 -> int
+    peric("{large1} + {large2} = {sum}")
+    
+    eric diff = large1 - large2 -> int
+    peric("{large1} - {large2} = {diff}")
+    
+    eric prod = 1000 * 1000 -> int
+    peric("1000 * 1000 = {prod}")
+    
+    eric div = large3 / 1000 -> int
+    peric("{large3} / 1000 = {div}")
+    
+    deschodt 0

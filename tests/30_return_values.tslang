@@ -1,0 +1,100 @@
+desnote ========================================
+desnote TEST: Return Values
+desnote Tests: Function return statements
+desnote Expected: Correct return value handling
+desnote ========================================
+
+desnote Return constant
+Deschodt getFortyTwo() -> int
+    deschodt 42
+
+desnote Return variable
+Deschodt returnVar() -> int
+    eric result = 100 -> int
+    deschodt result
+
+desnote Return expression
+Deschodt returnExpr(a -> int, b -> int) -> int
+    deschodt a * b + 1
+
+desnote Early return in condition
+Deschodt earlyReturn(n -> int) -> int
+    erif (n < 0):
+        deschodt -1
+    erif (n == 0):
+        deschodt 0
+    deschodt n * 2
+
+desnote Return in loop
+Deschodt findFirst(arr -> int[], size -> int, target -> int) -> int
+    aer i in range(0, size):
+        erif (arr[i] == target):
+            deschodt i
+    deschodt -1
+
+desnote Return from nested conditions
+Deschodt classify(n -> int) -> int
+    erif (n < 0):
+        erif (n < -100):
+            deschodt -2
+        deschelse:
+            deschodt -1
+    deschelse:
+        erif (n > 100):
+            deschodt 2
+        deschelse:
+            deschodt 1
+
+desnote Return void (implicit)
+Deschodt printMessage(msg -> string) -> void
+    peric("{msg}")
+
+Deschodt Eric() -> int
+    peric("=== Return Value Tests ===")
+    
+    eric r1 = getFortyTwo() -> int
+    peric("getFortyTwo() = {r1}")
+    
+    eric r2 = returnVar() -> int
+    peric("returnVar() = {r2}")
+    
+    eric r3 = returnExpr(5, 3) -> int
+    peric("returnExpr(5, 3) = {r3}")
+    
+    peric("")
+    peric("Early return tests:")
+    eric e1 = earlyReturn(-5) -> int
+    eric e2 = earlyReturn(0) -> int
+    eric e3 = earlyReturn(10) -> int
+    peric("  earlyReturn(-5) = {e1}")
+    peric("  earlyReturn(0) = {e2}")
+    peric("  earlyReturn(10) = {e3}")
+    
+    peric("")
+    peric("Find in array:")
+    eric arr -> int[5]
+    arr[0] = 10
+    arr[1] = 20
+    arr[2] = 30
+    arr[3] = 40
+    arr[4] = 50
+    
+    eric idx1 = findFirst(arr, 5, 30) -> int
+    eric idx2 = findFirst(arr, 5, 99) -> int
+    peric("  Find 30: index {idx1}")
+    peric("  Find 99: index {idx2}")
+    
+    peric("")
+    peric("Classify tests:")
+    eric c1 = classify(-150) -> int
+    eric c2 = classify(-50) -> int
+    eric c3 = classify(50) -> int
+    eric c4 = classify(150) -> int
+    peric("  classify(-150) = {c1}")
+    peric("  classify(-50) = {c2}")
+    peric("  classify(50) = {c3}")
+    peric("  classify(150) = {c4}")
+    
+    printMessage("Void function test")
+    
+    deschodt 0

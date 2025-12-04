@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: ERROR - Missing operand
+desnote Tests: Operator without right operand
+desnote Expected: Lexer error about missing operand
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric x = 5 + -> int
+    deschodt 0

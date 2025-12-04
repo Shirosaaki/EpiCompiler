@@ -1,0 +1,10 @@
+desnote ========================================
+desnote TEST: ERROR - Indentation error
+desnote Tests: Inconsistent indentation
+desnote Expected: Lexer error about indentation
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric x = 5 -> int
+  peric("Bad indent")
+    deschodt 0

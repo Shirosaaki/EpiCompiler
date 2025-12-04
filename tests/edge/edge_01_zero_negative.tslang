@@ -1,0 +1,59 @@
+desnote ========================================
+desnote TEST: Edge Case - Zero and negative numbers
+desnote Tests: Edge cases with numbers
+desnote Expected: Correct handling of zero and negatives
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Zero and Negative Number Tests ===")
+    
+    desnote Zero
+    eric zero = 0 -> int
+    peric("zero = {zero}")
+    
+    desnote Negative numbers
+    eric neg1 = -1 -> int
+    eric neg100 = -100 -> int
+    eric negMax = -999999 -> int
+    peric("neg1 = {neg1}")
+    peric("neg100 = {neg100}")
+    peric("negMax = {negMax}")
+    
+    desnote Operations with zero
+    eric a = 10 -> int
+    eric b = a + zero -> int
+    eric c = a * zero -> int
+    eric d = zero - a -> int
+    peric("")
+    peric("10 + 0 = {b}")
+    peric("10 * 0 = {c}")
+    peric("0 - 10 = {d}")
+    
+    desnote Division edge cases
+    eric div1 = 10 / 2 -> int
+    eric div2 = 10 / 3 -> int
+    eric div3 = 1 / 10 -> int
+    peric("")
+    peric("10 / 2 = {div1}")
+    peric("10 / 3 = {div2}")
+    peric("1 / 10 = {div3}")
+    
+    desnote Negative arithmetic
+    eric negSum = neg1 + neg100 -> int
+    eric negProd = neg1 * neg100 -> int
+    eric negDiv = neg100 / neg1 -> int
+    peric("")
+    peric("-1 + -100 = {negSum}")
+    peric("-1 * -100 = {negProd}")
+    peric("-100 / -1 = {negDiv}")
+    
+    desnote Zero comparisons
+    peric("")
+    erif (zero == 0):
+        peric("zero equals 0")
+    erif (zero >= 0):
+        peric("zero >= 0")
+    erif (zero <= 0):
+        peric("zero <= 0")
+    
+    deschodt 0

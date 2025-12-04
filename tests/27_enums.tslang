@@ -1,0 +1,95 @@
+desnote ========================================
+desnote TEST: Enums (desnum)
+desnote Tests: Enum definition and usage
+desnote Expected: Correct enum values (0-indexed)
+desnote ========================================
+
+desnum Color:
+    Red
+    Green
+    Blue
+    Yellow
+    Purple
+
+desnum Day:
+    Monday
+    Tuesday
+    Wednesday
+    Thursday
+    Friday
+    Saturday
+    Sunday
+
+desnum Status:
+    Inactive
+    Active
+    Pending
+    Completed
+    Error
+
+desnum Priority:
+    Low
+    Medium
+    High
+    Critical
+
+Deschodt printDay(d -> int) -> void
+    erif (d == 0):
+        peric("  Monday")
+    erif (d == 1):
+        peric("  Tuesday")
+    erif (d == 2):
+        peric("  Wednesday")
+    erif (d == 3):
+        peric("  Thursday")
+    erif (d == 4):
+        peric("  Friday")
+    erif (d == 5):
+        peric("  Saturday")
+    erif (d == 6):
+        peric("  Sunday")
+
+Deschodt Eric() -> int
+    peric("=== Enum Tests ===")
+    
+    peric("Color values:")
+    peric("  Red = {Red}")
+    peric("  Green = {Green}")
+    peric("  Blue = {Blue}")
+    peric("  Yellow = {Yellow}")
+    peric("  Purple = {Purple}")
+    
+    peric("")
+    peric("Day values:")
+    peric("  Monday = {Monday}")
+    peric("  Sunday = {Sunday}")
+    
+    peric("")
+    peric("Status values:")
+    peric("  Inactive = {Inactive}")
+    peric("  Active = {Active}")
+    peric("  Error = {Error}")
+    
+    desnote Using enums in variables
+    peric("")
+    peric("Using enums:")
+    eric today = Wednesday -> Day
+    eric myStatus = Active -> Status
+    eric priority = High -> Priority
+    eric favColor = Blue -> Color
+    
+    peric("  today = {today}")
+    printDay(today)
+    peric("  myStatus = {myStatus}")
+    peric("  priority = {priority}")
+    peric("  favColor = {favColor}")
+    
+    desnote Enum comparisons
+    peric("")
+    erif (priority >= High):
+        peric("Priority is HIGH or above!")
+    
+    erif (myStatus == Active):
+        peric("Status is ACTIVE!")
+    
+    deschodt 0

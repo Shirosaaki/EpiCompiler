@@ -1,0 +1,54 @@
+desnote ========================================
+desnote TEST: Algorithm - Binary Search
+desnote Tests: Binary search on sorted array
+desnote Expected: Correct index or -1 if not found
+desnote ========================================
+
+Deschodt binarySearch(arr -> int[], size -> int, target -> int) -> int
+    eric left = 0 -> int
+    eric right = size - 1 -> int
+    darius (left <= right):
+        eric mid = (left + right) / 2 -> int
+        erif (arr[mid] == target):
+            deschodt mid
+        erif (arr[mid] < target):
+            left = mid + 1
+        deschelse:
+            right = mid - 1
+    deschodt -1
+
+Deschodt Eric() -> int
+    peric("=== Binary Search Test ===")
+    
+    desnote Sorted array
+    eric arr -> int[10]
+    arr[0] = 2
+    arr[1] = 5
+    arr[2] = 8
+    arr[3] = 12
+    arr[4] = 16
+    arr[5] = 23
+    arr[6] = 38
+    arr[7] = 56
+    arr[8] = 72
+    arr[9] = 91
+    
+    peric("Sorted array: 2, 5, 8, 12, 16, 23, 38, 56, 72, 91")
+    peric("")
+    
+    eric idx1 = binarySearch(arr, 10, 23) -> int
+    peric("Search for 23: index {idx1}")
+    
+    eric idx2 = binarySearch(arr, 10, 2) -> int
+    peric("Search for 2: index {idx2}")
+    
+    eric idx3 = binarySearch(arr, 10, 91) -> int
+    peric("Search for 91: index {idx3}")
+    
+    eric idx4 = binarySearch(arr, 10, 50) -> int
+    peric("Search for 50: index {idx4}")
+    
+    eric idx5 = binarySearch(arr, 10, 1) -> int
+    peric("Search for 1: index {idx5}")
+    
+    deschodt 0

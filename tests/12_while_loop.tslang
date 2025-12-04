@@ -1,0 +1,46 @@
+desnote ========================================
+desnote TEST: While Loop (darius)
+desnote Tests: While loop functionality
+desnote Expected: Correct loop execution
+desnote ========================================
+
+Deschodt Eric() -> int
+    desnote Basic while loop
+    peric("Counting 0 to 4:")
+    eric i = 0 -> int
+    darius (i < 5):
+        peric("  i = {i}")
+        i = i + 1
+    
+    desnote Countdown
+    peric("Countdown from 5:")
+    eric count = 5 -> int
+    darius (count > 0):
+        peric("  {count}")
+        count = count - 1
+    peric("  Liftoff!")
+    
+    desnote Sum calculation
+    peric("Sum 1 to 10:")
+    eric sum = 0 -> int
+    eric n = 1 -> int
+    darius (n <= 10):
+        sum = sum + n
+        n = n + 1
+    peric("  Total: {sum}")
+    
+    desnote Single iteration
+    peric("Single iteration while:")
+    eric x = 0 -> int
+    darius (x < 1):
+        peric("  x = {x}")
+        x = x + 1
+    
+    desnote Zero iterations (false condition)
+    peric("Zero iterations (condition already false):")
+    eric y = 10 -> int
+    darius (y < 0):
+        peric("  This should NOT print")
+    peric("Done")
+    
+    deschodt 0

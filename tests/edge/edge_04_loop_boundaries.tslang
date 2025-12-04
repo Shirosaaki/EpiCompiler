@@ -1,0 +1,60 @@
+desnote ========================================
+desnote TEST: Edge Case - Loop boundaries
+desnote Tests: Loop edge cases
+desnote Expected: Correct loop handling at boundaries
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Loop Boundary Tests ===")
+    
+    desnote Zero iterations
+    peric("Zero iterations (5 to 5):")
+    eric count0 = 0 -> int
+    aer i in range(5, 5):
+        count0 = count0 + 1
+        peric("  Should not print")
+    peric("  Count: {count0}")
+    
+    desnote Single iteration
+    peric("")
+    peric("Single iteration (0 to 1):")
+    eric count1 = 0 -> int
+    aer i in range(0, 1):
+        count1 = count1 + 1
+        peric("  i = {i}")
+    peric("  Count: {count1}")
+    
+    desnote While with immediate false
+    peric("")
+    peric("While immediate false:")
+    eric x = 10 -> int
+    darius (x < 5):
+        peric("  Should not print")
+    peric("  Skipped correctly")
+    
+    desnote Negative range (should not iterate)
+    peric("")
+    peric("Reverse range (10 to 5):")
+    eric count2 = 0 -> int
+    aer i in range(10, 5):
+        count2 = count2 + 1
+        peric("  Should not print")
+    peric("  Count: {count2}")
+    
+    desnote Large iteration count
+    peric("")
+    peric("100 iterations:")
+    eric sum = 0 -> int
+    aer i in range(0, 100):
+        sum = sum + 1
+    peric("  Sum of 1s for 100 iterations: {sum}")
+    
+    desnote Nested zero iterations
+    peric("")
+    peric("Nested zero iterations:")
+    aer i in range(0, 2):
+        aer j in range(5, 5):
+            peric("  Inner should not run")
+        peric("  Outer i = {i}")
+    
+    deschodt 0

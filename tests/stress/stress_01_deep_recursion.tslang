@@ -1,0 +1,36 @@
+desnote ========================================
+desnote TEST: Stress - Deep recursion
+desnote Tests: Deep recursive calls
+desnote Expected: Correct handling without stack overflow
+desnote ========================================
+
+Deschodt sumTo(n -> int) -> int
+    erif (n <= 0):
+        deschodt 0
+    deschelse:
+        deschodt n + sumTo(n - 1)
+
+Deschodt countDown(n -> int) -> int
+    erif (n <= 0):
+        deschodt 0
+    deschelse:
+        deschodt 1 + countDown(n - 1)
+
+Deschodt Eric() -> int
+    peric("=== Deep Recursion Stress Test ===")
+    
+    peric("Sum 1 to 50:")
+    eric sum50 = sumTo(50) -> int
+    peric("  sumTo(50) = {sum50}")
+    
+    peric("")
+    peric("Sum 1 to 100:")
+    eric sum100 = sumTo(100) -> int
+    peric("  sumTo(100) = {sum100}")
+    
+    peric("")
+    peric("Countdown from 100:")
+    eric count = countDown(100) -> int
+    peric("  countDown(100) = {count}")
+    
+    deschodt 0

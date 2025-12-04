@@ -1,0 +1,89 @@
+desnote ========================================
+desnote TEST: Integration - Game Score System
+desnote Tests: Complex logic with multiple features
+desnote Expected: Correct game simulation
+desnote ========================================
+
+desnum GameState:
+    NotStarted
+    InProgress
+    Paused
+    GameOver
+    Victory
+
+destruct Player:
+    name -> string
+    score -> int
+    lives -> int
+    level -> int
+
+Deschodt initPlayer(p -> Player*, name -> string) -> void
+    p.name = name
+    p.score = 0
+    p.lives = 3
+    p.level = 1
+
+Deschodt addPoints(p -> Player*, points -> int) -> void
+    p.score = p.score + points
+    peric("  {p.name} gained {points} points! Total: {p.score}")
+
+Deschodt loseLife(p -> Player*) -> int
+    p.lives = p.lives - 1
+    peric("  {p.name} lost a life! Lives remaining: {p.lives}")
+    erif (p.lives <= 0):
+        peric("  GAME OVER for {p.name}!")
+        deschodt 0
+    deschodt 1
+
+Deschodt levelUp(p -> Player*) -> void
+    p.level = p.level + 1
+    eric bonus = p.level * 100 -> int
+    p.score = p.score + bonus
+    peric("  {p.name} leveled up to {p.level}! Bonus: {bonus} points")
+
+Deschodt printStatus(p -> Player*) -> void
+    peric("  Name: {p.name}")
+    peric("  Score: {p.score}")
+    peric("  Lives: {p.lives}")
+    peric("  Level: {p.level}")
+
+Deschodt Eric() -> int
+    peric("=== Game Score System ===")
+    
+    eric player -> Player
+    initPlayer(&player, "Hero")
+    
+    peric("")
+    peric("Initial status:")
+    printStatus(&player)
+    
+    peric("")
+    peric("Game events:")
+    
+    addPoints(&player, 50)
+    addPoints(&player, 75)
+    levelUp(&player)
+    addPoints(&player, 100)
+    
+    eric stillAlive = loseLife(&player) -> int
+    addPoints(&player, 200)
+    levelUp(&player)
+    
+    stillAlive = loseLife(&player)
+    addPoints(&player, 150)
+    levelUp(&player)
+    
+    peric("")
+    peric("Final status:")
+    printStatus(&player)
+    
+    desnote Game state
+    peric("")
+    eric state = InProgress -> GameState
+    peric("Game state: {state}")
+    
+    erif (player.score >= 500):
+        state = Victory
+        peric("VICTORY! Final state: {state}")
+    
+    deschodt 0

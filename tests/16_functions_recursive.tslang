@@ -1,0 +1,80 @@
+desnote ========================================
+desnote TEST: Recursive Functions
+desnote Tests: Function recursion
+desnote Expected: Correct recursive execution
+desnote ========================================
+
+desnote Factorial - classic recursion
+Deschodt factorial(n -> int) -> int
+    erif (n <= 1):
+        deschodt 1
+    deschelse:
+        deschodt n * factorial(n - 1)
+
+desnote Fibonacci sequence
+Deschodt fibonacci(n -> int) -> int
+    erif (n <= 0):
+        deschodt 0
+    erif (n == 1):
+        deschodt 1
+    deschelse:
+        deschodt fibonacci(n - 1) + fibonacci(n - 2)
+
+desnote Sum from 1 to n (recursive)
+Deschodt sumTo(n -> int) -> int
+    erif (n <= 0):
+        deschodt 0
+    deschelse:
+        deschodt n + sumTo(n - 1)
+
+desnote Power function
+Deschodt power(base -> int, exp -> int) -> int
+    erif (exp == 0):
+        deschodt 1
+    deschelse:
+        deschodt base * power(base, exp - 1)
+
+desnote Countdown (recursive with print)
+Deschodt countdown(n -> int) -> void
+    erif (n <= 0):
+        peric("  Liftoff!")
+    deschelse:
+        peric("  {n}")
+        countdown(n - 1)
+
+Deschodt Eric() -> int
+    peric("=== Recursive Function Tests ===")
+    
+    peric("")
+    peric("Factorial tests:")
+    aer i in range(0, 8):
+        eric f = factorial(i) -> int
+        peric("  {i}! = {f}")
+    
+    peric("")
+    peric("Fibonacci sequence:")
+    aer i in range(0, 12):
+        eric fib = fibonacci(i) -> int
+        peric("  fib({i}) = {fib}")
+    
+    peric("")
+    peric("Sum tests:")
+    eric sum5 = sumTo(5) -> int
+    eric sum10 = sumTo(10) -> int
+    peric("  sumTo(5) = {sum5}")
+    peric("  sumTo(10) = {sum10}")
+    
+    peric("")
+    peric("Power tests:")
+    eric p1 = power(2, 8) -> int
+    eric p2 = power(3, 4) -> int
+    eric p3 = power(10, 3) -> int
+    peric("  2^8 = {p1}")
+    peric("  3^4 = {p2}")
+    peric("  10^3 = {p3}")
+    
+    peric("")
+    peric("Countdown:")
+    countdown(5)
+    
+    deschodt 0

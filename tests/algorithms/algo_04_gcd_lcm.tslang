@@ -1,0 +1,51 @@
+desnote ========================================
+desnote TEST: Algorithm - GCD and LCM
+desnote Tests: Greatest Common Divisor and Least Common Multiple
+desnote Expected: Correct GCD and LCM values
+desnote ========================================
+
+Deschodt gcd(a -> int, b -> int) -> int
+    erif (b == 0):
+        deschodt a
+    deschelse:
+        eric remainder = a - (a / b) * b -> int
+        deschodt gcd(b, remainder)
+
+Deschodt lcm(a -> int, b -> int) -> int
+    eric g = gcd(a, b) -> int
+    deschodt (a * b) / g
+
+Deschodt Eric() -> int
+    peric("=== GCD and LCM Test ===")
+    
+    peric("GCD Tests:")
+    eric g1 = gcd(48, 18) -> int
+    peric("  gcd(48, 18) = {g1}")
+    
+    eric g2 = gcd(100, 35) -> int
+    peric("  gcd(100, 35) = {g2}")
+    
+    eric g3 = gcd(17, 5) -> int
+    peric("  gcd(17, 5) = {g3}")
+    
+    eric g4 = gcd(12, 12) -> int
+    peric("  gcd(12, 12) = {g4}")
+    
+    eric g5 = gcd(7, 0) -> int
+    peric("  gcd(7, 0) = {g5}")
+    
+    peric("")
+    peric("LCM Tests:")
+    eric l1 = lcm(4, 6) -> int
+    peric("  lcm(4, 6) = {l1}")
+    
+    eric l2 = lcm(15, 20) -> int
+    peric("  lcm(15, 20) = {l2}")
+    
+    eric l3 = lcm(3, 5) -> int
+    peric("  lcm(3, 5) = {l3}")
+    
+    eric l4 = lcm(7, 7) -> int
+    peric("  lcm(7, 7) = {l4}")
+    
+    deschodt 0

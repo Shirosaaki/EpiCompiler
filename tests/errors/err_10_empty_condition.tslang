@@ -1,0 +1,10 @@
+desnote ========================================
+desnote TEST: ERROR - Empty condition
+desnote Tests: erif with empty parentheses
+desnote Expected: Lexer error about empty condition
+desnote ========================================
+
+Deschodt Eric() -> int
+    erif ():
+        peric("Hello")
+    deschodt 0

@@ -1,0 +1,74 @@
+desnote ========================================
+desnote TEST: Edge Case - Conditionals
+desnote Tests: Edge cases with conditionals
+desnote Expected: Correct conditional evaluation
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("=== Conditional Edge Cases ===")
+    
+    desnote Always true
+    peric("Always true (1 == 1):")
+    erif (1 == 1):
+        peric("  TRUE branch taken")
+    deschelse:
+        peric("  FALSE - ERROR!")
+    
+    desnote Always false
+    peric("")
+    peric("Always false (1 == 0):")
+    erif (1 == 0):
+        peric("  TRUE - ERROR!")
+    deschelse:
+        peric("  FALSE branch taken")
+    
+    desnote Boundary comparisons
+    peric("")
+    peric("Boundary comparisons:")
+    eric x = 10 -> int
+    
+    erif (x >= 10):
+        peric("  x >= 10: TRUE (x={x})")
+    erif (x <= 10):
+        peric("  x <= 10: TRUE (x={x})")
+    erif (x > 10):
+        peric("  x > 10: TRUE")
+    deschelse:
+        peric("  x > 10: FALSE")
+    erif (x < 10):
+        peric("  x < 10: TRUE")
+    deschelse:
+        peric("  x < 10: FALSE")
+    
+    desnote Zero comparisons
+    peric("")
+    peric("Zero comparisons:")
+    eric zero = 0 -> int
+    
+    erif (zero == 0):
+        peric("  zero == 0: TRUE")
+    erif (zero < 0):
+        peric("  zero < 0: TRUE")
+    deschelse:
+        peric("  zero < 0: FALSE")
+    erif (zero > 0):
+        peric("  zero > 0: TRUE")
+    deschelse:
+        peric("  zero > 0: FALSE")
+    
+    desnote Chained else-if pattern
+    peric("")
+    peric("Grade classification (score=85):")
+    eric score = 85 -> int
+    erif (score >= 90):
+        peric("  Grade: A")
+    deschelse:
+        erif (score >= 80):
+            peric("  Grade: B")
+        deschelse:
+            erif (score >= 70):
+                peric("  Grade: C")
+            deschelse:
+                peric("  Grade: F")
+    
+    deschodt 0

@@ -1,0 +1,78 @@
+desnote ========================================
+desnote TEST: Arrays with Functions
+desnote Tests: Passing arrays to functions
+desnote Expected: Correct array manipulation via functions
+desnote ========================================
+
+desnote Sum array elements
+Deschodt sumArray(arr -> int[], size -> int) -> int
+    eric total = 0 -> int
+    aer i in range(0, size):
+        total = total + arr[i]
+    deschodt total
+
+desnote Find maximum
+Deschodt findMax(arr -> int[], size -> int) -> int
+    eric max = arr[0] -> int
+    aer i in range(1, size):
+        erif (arr[i] > max):
+            max = arr[i]
+    deschodt max
+
+desnote Find minimum
+Deschodt findMin(arr -> int[], size -> int) -> int
+    eric min = arr[0] -> int
+    aer i in range(1, size):
+        erif (arr[i] < min):
+            min = arr[i]
+    deschodt min
+
+desnote Calculate average (returns integer)
+Deschodt average(arr -> int[], size -> int) -> int
+    eric sum = sumArray(arr, size) -> int
+    deschodt sum / size
+
+desnote Count occurrences
+Deschodt countValue(arr -> int[], size -> int, target -> int) -> int
+    eric count = 0 -> int
+    aer i in range(0, size):
+        erif (arr[i] == target):
+            count = count + 1
+    deschodt count
+
+desnote Print array
+Deschodt printArray(arr -> int[], size -> int) -> void
+    aer i in range(0, size):
+        peric("  [{i}] = {arr[i]}")
+
+Deschodt Eric() -> int
+    peric("=== Arrays with Functions ===")
+    
+    eric data -> int[8]
+    data[0] = 15
+    data[1] = 42
+    data[2] = 8
+    data[3] = 42
+    data[4] = 23
+    data[5] = 16
+    data[6] = 4
+    data[7] = 42
+    
+    peric("Array contents:")
+    printArray(data, 8)
+    
+    eric sum = sumArray(data, 8) -> int
+    eric max = findMax(data, 8) -> int
+    eric min = findMin(data, 8) -> int
+    eric avg = average(data, 8) -> int
+    eric count42 = countValue(data, 8, 42) -> int
+    
+    peric("")
+    peric("Statistics:")
+    peric("  Sum: {sum}")
+    peric("  Max: {max}")
+    peric("  Min: {min}")
+    peric("  Average: {avg}")
+    peric("  Count of 42: {count42}")
+    
+    deschodt 0

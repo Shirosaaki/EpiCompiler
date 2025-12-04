@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: ERROR - peric without parentheses
+desnote Tests: peric keyword without ()
+desnote Expected: Lexer error
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric "Hello"
+    deschodt 0

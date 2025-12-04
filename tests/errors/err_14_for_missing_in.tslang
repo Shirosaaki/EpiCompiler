@@ -1,0 +1,10 @@
+desnote ========================================
+desnote TEST: ERROR - for loop missing 'in'
+desnote Tests: aer without 'in' keyword
+desnote Expected: Lexer error
+desnote ========================================
+
+Deschodt Eric() -> int
+    aer i range(0, 5):
+        peric("{i}")
+    deschodt 0

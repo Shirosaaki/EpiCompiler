@@ -1,0 +1,41 @@
+desnote ========================================
+desnote TEST: Integer Variables
+desnote Tests: int declaration, initialization, assignment
+desnote Expected: Various integer operations
+desnote ========================================
+
+Deschodt Eric() -> int
+    desnote Declaration without initialization
+    eric a -> int
+    
+    desnote Declaration with initialization
+    eric b = 42 -> int
+    
+    desnote Assignment
+    a = 10
+    
+    desnote Multiple variables
+    eric c = 100 -> int
+    eric d = 0 -> int
+    eric e = -50 -> int
+    
+    peric("a = {a}")
+    peric("b = {b}")
+    peric("c = {c}")
+    peric("d = {d}")
+    peric("e = {e}")
+    
+    desnote Reassignment
+    a = 999
+    b = -1
+    peric("After reassignment: a = {a}, b = {b}")
+    
+    deschodt 0
+
+desnote Expected output:
+desnote a = 10
+desnote b = 42
+desnote c = 100
+desnote d = 0
+desnote e = -50
+desnote After reassignment: a = 999, b = -1

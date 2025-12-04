@@ -1,0 +1,8 @@
+desnote ========================================
+desnote TEST: ERROR - deschodt without expression
+desnote Tests: Return without value
+desnote Expected: Lexer error
+desnote ========================================
+
+Deschodt Eric() -> int
+    deschodt

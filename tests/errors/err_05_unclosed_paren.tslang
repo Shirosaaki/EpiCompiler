@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: ERROR - Unclosed parenthesis
+desnote Tests: Missing closing parenthesis
+desnote Expected: Lexer error about unclosed delimiter
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("Hello"
+    deschodt 0

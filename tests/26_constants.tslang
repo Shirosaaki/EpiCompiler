@@ -1,0 +1,46 @@
+desnote ========================================
+desnote TEST: Constants (cz)
+desnote Tests: Constant declaration and usage
+desnote Expected: Correct constant values
+desnote ========================================
+
+cz PI = 3.14159 -> float
+cz E = 2.71828 -> float
+cz MAX_SIZE = 100 -> int
+cz MIN_VALUE = 0 -> int
+cz APP_NAME = "TestApp" -> string
+cz VERSION = "1.0.0" -> string
+cz MAGIC = 42 -> int
+
+Deschodt Eric() -> int
+    peric("=== Constant Tests ===")
+    
+    peric("Float constants:")
+    peric("  PI = {PI}")
+    peric("  E = {E}")
+    
+    peric("")
+    peric("Int constants:")
+    peric("  MAX_SIZE = {MAX_SIZE}")
+    peric("  MIN_VALUE = {MIN_VALUE}")
+    peric("  MAGIC = {MAGIC}")
+    
+    peric("")
+    peric("String constants:")
+    peric("  APP_NAME = {APP_NAME}")
+    peric("  VERSION = {VERSION}")
+    
+    desnote Use constants in expressions
+    peric("")
+    peric("Using constants:")
+    eric radius = 5 -> int
+    eric circumference = 2 * PI * radius -> float
+    peric("  Circle with radius {radius}")
+    peric("  Circumference ≈ 2 * PI * {radius}")
+    
+    desnote Use in conditions
+    eric value = 50 -> int
+    erif (value < MAX_SIZE):
+        peric("  {value} is within MAX_SIZE ({MAX_SIZE})")
+    
+    deschodt 0

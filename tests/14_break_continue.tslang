@@ -1,0 +1,55 @@
+desnote ========================================
+desnote TEST: Break and Continue
+desnote Tests: deschreak and deschontinue statements
+desnote Expected: Correct loop control
+desnote ========================================
+
+Deschodt Eric() -> int
+    desnote Break - exit loop early
+    peric("Break test (stop at 5):")
+    aer i in range(0, 10):
+        erif (i == 5):
+            peric("  Breaking!")
+            deschreak
+        peric("  i = {i}")
+    peric("After loop")
+    
+    desnote Continue - skip iteration
+    peric("")
+    peric("Continue test (skip 3):")
+    aer i in range(0, 6):
+        erif (i == 3):
+            peric("  Skipping 3...")
+            deschontinue
+        peric("  i = {i}")
+    
+    desnote Multiple skips
+    peric("")
+    peric("Skip even numbers:")
+    aer i in range(0, 10):
+        eric remainder = i - (i / 2) * 2 -> int
+        erif (remainder == 0):
+            deschontinue
+        peric("  Odd: {i}")
+    
+    desnote Break and continue together
+    peric("")
+    peric("Combined: skip 2, stop at 7:")
+    aer i in range(0, 10):
+        erif (i == 2):
+            deschontinue
+        erif (i == 7):
+            deschreak
+        peric("  i = {i}")
+    
+    desnote Break in while loop
+    peric("")
+    peric("Break in while:")
+    eric x = 0 -> int
+    darius (x < 100):
+        erif (x >= 3):
+            deschreak
+        peric("  x = {x}")
+        x = x + 1
+    
+    deschodt 0

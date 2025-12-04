@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: ERROR - Missing type annotation
+desnote Tests: Variable without -> type
+desnote Expected: Lexer/Parser error
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric x = 10
+    deschodt 0

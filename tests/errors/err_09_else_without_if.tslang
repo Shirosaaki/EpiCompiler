@@ -1,0 +1,10 @@
+desnote ========================================
+desnote TEST: ERROR - else without if
+desnote Tests: deschelse without preceding erif
+desnote Expected: Lexer error about mismatched else
+desnote ========================================
+
+Deschodt Eric() -> int
+    deschelse:
+        peric("Hello")
+    deschodt 0

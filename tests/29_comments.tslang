@@ -1,0 +1,27 @@
+desnote ========================================
+desnote TEST: Comments (desnote)
+desnote Tests: Single-line comments
+desnote Expected: Comments ignored, code executes
+desnote ========================================
+
+desnote This is a comment at the top
+
+Deschodt Eric() -> int
+    desnote Comment inside function
+    peric("Start")
+    
+    desnote Comment before variable
+    eric x = 10 -> int
+    desnote Comment after variable
+    
+    desnote Multiple consecutive comments
+    desnote Line 1
+    desnote Line 2
+    desnote Line 3
+    
+    peric("x = {x}")
+    
+    desnote Comment at end of function
+    deschodt 0
+
+desnote Comment at end of file

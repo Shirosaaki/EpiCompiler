@@ -1,0 +1,52 @@
+desnote ========================================
+desnote TEST: Algorithm - Prime numbers
+desnote Tests: Prime number detection and generation
+desnote Expected: Correct prime identification
+desnote ========================================
+
+Deschodt isPrime(n -> int) -> int
+    erif (n <= 1):
+        deschodt 0
+    erif (n <= 3):
+        deschodt 1
+    eric remainder = n - (n / 2) * 2 -> int
+    erif (remainder == 0):
+        deschodt 0
+    eric i = 3 -> int
+    darius (i * i <= n):
+        eric mod = n - (n / i) * i -> int
+        erif (mod == 0):
+            deschodt 0
+        i = i + 2
+    deschodt 1
+
+Deschodt Eric() -> int
+    peric("=== Prime Number Test ===")
+    
+    peric("Prime check for 1-30:")
+    aer n in range(1, 31):
+        eric prime = isPrime(n) -> int
+        erif (prime == 1):
+            peric("  {n} is PRIME")
+    
+    peric("")
+    peric("Count primes up to 100:")
+    eric count = 0 -> int
+    aer n in range(1, 101):
+        eric prime = isPrime(n) -> int
+        erif (prime == 1):
+            count = count + 1
+    peric("  Total primes: {count}")
+    
+    peric("")
+    peric("First 10 primes:")
+    eric found = 0 -> int
+    eric candidate = 2 -> int
+    darius (found < 10):
+        eric prime = isPrime(candidate) -> int
+        erif (prime == 1):
+            peric("  Prime #{found}: {candidate}")
+            found = found + 1
+        candidate = candidate + 1
+    
+    deschodt 0

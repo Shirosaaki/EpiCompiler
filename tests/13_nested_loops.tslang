@@ -1,0 +1,39 @@
+desnote ========================================
+desnote TEST: Nested Loops
+desnote Tests: Multiple levels of loop nesting
+desnote Expected: Correct nested iteration
+desnote ========================================
+
+Deschodt Eric() -> int
+    desnote 2D grid
+    peric("2x3 Grid:")
+    aer i in range(0, 2):
+        aer j in range(0, 3):
+            peric("  ({i}, {j})")
+    
+    desnote Multiplication table
+    peric("Multiplication table 1-3:")
+    aer i in range(1, 4):
+        aer j in range(1, 4):
+            eric product = i * j -> int
+            peric("  {i} x {j} = {product}")
+    
+    desnote Triple nested loop
+    peric("Triple nested 2x2x2:")
+    eric count = 0 -> int
+    aer i in range(0, 2):
+        aer j in range(0, 2):
+            aer k in range(0, 2):
+                count = count + 1
+                peric("  [{i},{j},{k}] count={count}")
+    peric("Total iterations: {count}")
+    
+    desnote While inside for
+    peric("While inside for:")
+    aer i in range(0, 3):
+        eric j = 0 -> int
+        darius (j < 2):
+            peric("  i={i}, j={j}")
+            j = j + 1
+    
+    deschodt 0

@@ -1,0 +1,37 @@
+desnote ========================================
+desnote TEST: Compound Assignment Operators
+desnote Tests: +=, -=, *=, /=
+desnote Expected: Correct compound operations
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric x = 10 -> int
+    peric("Initial x = {x}")
+    
+    x += 5
+    peric("After x += 5: {x}")
+    
+    x -= 3
+    peric("After x -= 3: {x}")
+    
+    x *= 2
+    peric("After x *= 2: {x}")
+    
+    x /= 4
+    peric("After x /= 4: {x}")
+    
+    desnote Test in loops
+    eric counter = 0 -> int
+    aer i in range(0, 5):
+        counter += i
+    peric("Sum of 0+1+2+3+4 = {counter}")
+    
+    deschodt 0
+
+desnote Expected output:
+desnote Initial x = 10
+desnote After x += 5: 15
+desnote After x -= 3: 12
+desnote After x *= 2: 24
+desnote After x /= 4: 6
+desnote Sum of 0+1+2+3+4 = 10

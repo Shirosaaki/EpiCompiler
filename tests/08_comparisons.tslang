@@ -1,0 +1,56 @@
+desnote ========================================
+desnote TEST: Comparison Operators
+desnote Tests: ==, !=, <, >, <=, >=
+desnote Expected: Correct boolean evaluations
+desnote ========================================
+
+Deschodt Eric() -> int
+    eric a = 10 -> int
+    eric b = 20 -> int
+    eric c = 10 -> int
+    
+    peric("a = {a}, b = {b}, c = {c}")
+    peric("")
+    
+    desnote Equal
+    erif (a == c):
+        peric("a == c: TRUE")
+    deschelse:
+        peric("a == c: FALSE")
+    
+    erif (a == b):
+        peric("a == b: TRUE")
+    deschelse:
+        peric("a == b: FALSE")
+    
+    desnote Not equal
+    erif (a != b):
+        peric("a != b: TRUE")
+    deschelse:
+        peric("a != b: FALSE")
+    
+    desnote Less than
+    erif (a < b):
+        peric("a < b: TRUE")
+    deschelse:
+        peric("a < b: FALSE")
+    
+    desnote Greater than
+    erif (b > a):
+        peric("b > a: TRUE")
+    deschelse:
+        peric("b > a: FALSE")
+    
+    desnote Less than or equal
+    erif (a <= c):
+        peric("a <= c: TRUE")
+    deschelse:
+        peric("a <= c: FALSE")
+    
+    desnote Greater than or equal
+    erif (a >= c):
+        peric("a >= c: TRUE")
+    deschelse:
+        peric("a >= c: FALSE")
+    
+    deschodt 0

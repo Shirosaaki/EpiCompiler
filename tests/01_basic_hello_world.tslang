@@ -1,0 +1,9 @@
+desnote ========================================
+desnote TEST: Basic Hello World
+desnote Tests: Simple program structure, peric function
+desnote Expected: Should print "Hello, World!" and return 0
+desnote ========================================
+
+Deschodt Eric() -> int
+    peric("Hello, World!")
+    deschodt 0
