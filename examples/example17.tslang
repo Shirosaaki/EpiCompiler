@@ -1,0 +1,21 @@
+desnote ==============================================
+desnote                 example17.tslang
+desnote  Author: shirosaaki
+desnote  Date: 2025-12-11
+desnote =============================================
+
+Deschodt Eric() -> int
+    eric r -> string
+    r = renaud("file.txt")
+    peric("r = {r}")
+    eric ro -> string
+    ro = romaric("enter input: ")
+    peric("ro = {ro}")
+    peric("ro + r = {ro + r}")
+    marvin("file2.txt", r + ro + "\nSalut tout le monde!")
+    deschodt 0
+
+desnote This example demonstrates file reading / writting and user input handling.
+desnote r = renaud("file.txt") reads the content of file.txt and stores it in r.
+desnote ro = romaric("enter input: ") prompts the user for input and stores it in ro.
+desnote marvin("file2.txt", r + ro) writes the concatenation of r and ro into file2.text.

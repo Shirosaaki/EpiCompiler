@@ -620,11 +620,94 @@ static void emit_mov_eax_imm32(CodeGenerator *gen, uint32_t val)
     buffer_write_u32(&gen->code, val);
 }
 
+/* mov rax, imm32 (zero-extends to 64-bit) */
+static void emit_mov_rax_imm32(CodeGenerator *gen, uint32_t val)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0xC7);  /* mov rax, imm32 */
+    buffer_write_byte(&gen->code, 0xC0);
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov r8, imm32 */
+static void emit_mov_r8_imm32(CodeGenerator *gen, uint32_t val)
+{
+    buffer_write_byte(&gen->code, 0x41);  /* REX.B */
+    buffer_write_byte(&gen->code, 0xB8);  /* mov r8d, imm32 */
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov r9, imm32 */
+static void emit_mov_r9_imm32(CodeGenerator *gen, uint32_t val)
+{
+    buffer_write_byte(&gen->code, 0x41);  /* REX.B */
+    buffer_write_byte(&gen->code, 0xB9);  /* mov r9d, imm32 */
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov r10, imm32 */
+static void emit_mov_r10_imm32(CodeGenerator *gen, uint32_t val)
+{
+    buffer_write_byte(&gen->code, 0x41);  /* REX.B */
+    buffer_write_byte(&gen->code, 0xBA);  /* mov r10d, imm32 */
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov rsi, rbx */
+static void emit_mov_rsi_rbx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xDE);
+}
+
+/* mov rdi, rbx */
+__attribute__((unused))
+static void emit_mov_rdi_rbx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xDF);
+}
+
 /* mov edi, imm32 (for fd and small constants - won't be patched) */
 static void emit_mov_edi_imm32(CodeGenerator *gen, uint32_t val)
 {
     buffer_write_byte(&gen->code, 0xBF);  /* mov edi, imm32 */
     buffer_write_u32(&gen->code, val);
+}
+
+/* mov esi, imm32 */
+__attribute__((unused))
+static void emit_mov_esi_imm32(CodeGenerator *gen, uint32_t val)
+{
+    buffer_write_byte(&gen->code, 0xBE);  /* mov esi, imm32 */
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov edx, imm32 */
+__attribute__((unused))
+static void emit_mov_edx_imm32(CodeGenerator *gen, uint32_t val)
+{
+    buffer_write_byte(&gen->code, 0xBA);  /* mov edx, imm32 */
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov rdx, imm32 */
+static void emit_mov_rdx_imm32(CodeGenerator *gen, uint32_t val)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0xC7);  /* mov rdx, imm32 */
+    buffer_write_byte(&gen->code, 0xC2);
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov rdx, rax */
+static void emit_mov_rdx_rax(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);  /* mov rdx, rax */
+    buffer_write_byte(&gen->code, 0xC2);
 }
 
 /* mov rax, imm64 */
@@ -711,6 +794,7 @@ static void emit_pop_rbp(CodeGenerator *gen)
 }
 
 /* mov rax, rsp */
+__attribute__((unused))
 static void emit_mov_rax_rsp(CodeGenerator *gen)
 {
     emit_rex_w(gen);
@@ -768,6 +852,116 @@ static void emit_pop_rax(CodeGenerator *gen)
 static void emit_pop_rbx(CodeGenerator *gen)
 {
     buffer_write_byte(&gen->code, 0x5B);
+}
+
+/* pop rdi */
+static void emit_pop_rdi(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x5F);
+}
+
+/* pop rdx */
+static void emit_pop_rdx(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x5A);
+}
+
+/* xor rsi, rsi */
+__attribute__((unused))
+static void emit_xor_rsi_rsi(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x31);  /* xor rsi, rsi */
+    buffer_write_byte(&gen->code, 0xF6);
+}
+
+/* xor rdx, rdx */
+static void emit_xor_rdx_rdx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x31);  /* xor rdx, rdx */
+    buffer_write_byte(&gen->code, 0xD2);
+}
+
+/* xor rax, rax */
+__attribute__((unused))
+static void emit_xor_rax_rax(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x31);  /* xor rax, rax */
+    buffer_write_byte(&gen->code, 0xC0);
+}
+
+/* xor rcx, rcx */
+__attribute__((unused))
+static void emit_xor_rcx_rcx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x31);  /* xor rcx, rcx */
+    buffer_write_byte(&gen->code, 0xC9);
+}
+
+/* mov rdi, rax */
+static void emit_mov_rdi_rax(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);  /* mov rdi, rax */
+    buffer_write_byte(&gen->code, 0xC7);
+}
+
+/* mov rsi, imm32 */
+static void emit_mov_rsi_imm32(CodeGenerator *gen, uint32_t val)
+{
+    buffer_write_byte(&gen->code, 0xBE);  /* mov esi, imm32 */
+    buffer_write_u32(&gen->code, val);
+}
+
+/* mov rdx, rcx */
+__attribute__((unused))
+static void emit_mov_rdx_rcx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);  /* mov rdx, rcx */
+    buffer_write_byte(&gen->code, 0xCA);
+}
+
+/* push rdx */
+static void emit_push_rdx(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x52);
+}
+
+/* mov rsi, rax */
+static void emit_mov_rsi_rax(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xC6);
+}
+
+/* mov rcx, rdx */
+static void emit_mov_rcx_rdx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xD1);
+}
+
+/* mov rax, rdx */
+static void emit_mov_rax_rdx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xD0);
+}
+
+/* mov rsi, rax */
+__attribute__((unused))
+static void emit_mov_rsi_rax_ptr(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x89);
+    buffer_write_byte(&gen->code, 0xC6);
 }
 
 /* push rbx */
@@ -829,6 +1023,7 @@ static void emit_mov_rax_r12(CodeGenerator *gen)
 }
 
 /* mov rax, r13 */
+__attribute__((unused))
 static void emit_mov_rax_r13(CodeGenerator *gen)
 {
     buffer_write_byte(&gen->code, 0x4C);  /* REX.WR */
@@ -957,6 +1152,22 @@ static void emit_sub_rax_rbx(CodeGenerator *gen)
     buffer_write_byte(&gen->code, 0xD8);
 }
 
+/* sub rax, rdx */
+static void emit_sub_rax_rdx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x29);
+    buffer_write_byte(&gen->code, 0xD0);
+}
+
+/* add rax, rdx */
+static void emit_add_rax_rdx(CodeGenerator *gen)
+{
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x01);
+    buffer_write_byte(&gen->code, 0xD0);
+}
+
 /* imul rax, rbx */
 static void emit_imul_rax_rbx(CodeGenerator *gen)
 {
@@ -964,14 +1175,6 @@ static void emit_imul_rax_rbx(CodeGenerator *gen)
     buffer_write_byte(&gen->code, 0x0F);
     buffer_write_byte(&gen->code, 0xAF);
     buffer_write_byte(&gen->code, 0xC3);
-}
-
-/* xor rdx, rdx (for div) */
-static void emit_xor_rdx_rdx(CodeGenerator *gen)
-{
-    emit_rex_w(gen);
-    buffer_write_byte(&gen->code, 0x31);
-    buffer_write_byte(&gen->code, 0xD2);
 }
 
 /* mov rbx, rax */
@@ -992,6 +1195,7 @@ static void emit_imul_rbx_8(CodeGenerator *gen)
 }
 
 /* imul rcx, rcx, 8 */
+__attribute__((unused))
 static void emit_imul_rcx_8(CodeGenerator *gen)
 {
     emit_rex_w(gen);
@@ -1006,6 +1210,25 @@ static void emit_add_rax_rcx(CodeGenerator *gen)
     emit_rex_w(gen);
     buffer_write_byte(&gen->code, 0x01);
     buffer_write_byte(&gen->code, 0xC8);
+}
+
+/* mov rdi, imm32 */
+static void emit_mov_rdi_imm32(CodeGenerator *gen, uint32_t val)
+{
+    buffer_write_byte(&gen->code, 0xBF);  /* mov edi, imm32 */
+    buffer_write_u32(&gen->code, val);
+}
+
+/* pop rsi */
+static void emit_pop_rsi(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x5E);
+}
+
+/* push rsi */
+static void emit_push_rsi(CodeGenerator *gen)
+{
+    buffer_write_byte(&gen->code, 0x56);
 }
 
 /* lea rax, [rbp + offset] */
@@ -1587,10 +1810,256 @@ static void emit_sys_exit(CodeGenerator *gen)
     emit_syscall(gen);
 }
 
+/* ========== File I/O Syscall Helpers ========== */
+
+/* Emit syscall for open(rdi=filename, rsi=flags, rdx=mode) -> rax=fd */
+__attribute__((unused))
+static void emit_open_syscall(CodeGenerator *gen)
+{
+    /* syscall 2: open(filename, flags, mode) */
+    emit_mov_eax_imm32(gen, 2);
+    emit_syscall(gen);
+}
+
+/* Emit syscall for read(rdi=fd, rsi=buffer, rdx=count) -> rax=bytes_read */
+__attribute__((unused))
+static void emit_read_syscall(CodeGenerator *gen)
+{
+    /* syscall 0: read(fd, buffer, count) */
+    emit_mov_eax_imm32(gen, 0);
+    emit_syscall(gen);
+}
+
+/* Emit syscall for write(rdi=fd, rsi=buffer, rdx=count) -> rax=bytes_written */
+__attribute__((unused))
+static void emit_write_syscall(CodeGenerator *gen)
+{
+    /* syscall 1: write(fd, buffer, count) */
+    emit_mov_eax_imm32(gen, 1);
+    emit_syscall(gen);
+}
+
+/* Emit syscall for close(rdi=fd) -> rax=result */
+__attribute__((unused))
+static void emit_close_syscall(CodeGenerator *gen)
+{
+    /* syscall 3: close(fd) */
+    emit_mov_eax_imm32(gen, 3);
+    emit_syscall(gen);
+}
+
+/* Emit syscall for strlen(rdi=string) -> rax=length
+   Loop through string until null terminator */
+__attribute__((unused))
+static void emit_strlen(CodeGenerator *gen)
+{
+    /* rdi = string pointer
+       rax = length (result)
+       rsi = temporary for comparison */
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x31);  /* xor rax, rax */
+    buffer_write_byte(&gen->code, 0xC0);
+    
+    size_t loop_label = gen->code.size;
+    
+    /* Load byte from [rdi + rax] */
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0x8A);  /* mov cl, byte [rdi+rax] */
+    buffer_write_byte(&gen->code, 0x04);
+    buffer_write_byte(&gen->code, 0x07);
+    
+    /* Check if null terminator */
+    buffer_write_byte(&gen->code, 0x84);  /* test cl, cl */
+    buffer_write_byte(&gen->code, 0xC9);
+    
+    size_t jz_pos = gen->code.size + 1;
+    buffer_write_byte(&gen->code, 0x74);  /* jz (placeholder) */
+    buffer_write_byte(&gen->code, 0x00);
+    
+    /* Increment rax */
+    emit_rex_w(gen);
+    buffer_write_byte(&gen->code, 0xFF);  /* inc rax */
+    buffer_write_byte(&gen->code, 0xC0);
+    
+    /* Jump back to loop */
+    int32_t rel = (int32_t)(loop_label - (gen->code.size + 5));
+    buffer_write_byte(&gen->code, 0xE9);  /* jmp */
+    buffer_write_u32(&gen->code, (uint32_t)rel);
+    
+    /* Patch jz target */
+    size_t jz_target = gen->code.size;
+    int8_t jz_rel = (int8_t)(jz_target - (jz_pos + 1));
+    gen->code.data[jz_pos] = (uint8_t)jz_rel;
+}
+
 /* ========== Forward Declarations ========== */
 
 static int codegen_expression(CodeGenerator *gen, ASTNode *node);
 static int codegen_statement(CodeGenerator *gen, ASTNode *node);
+
+/* Helper to determine expression type */
+static DataType get_expression_type(CodeGenerator *gen, ASTNode *node)
+{
+    if (!node) return TYPE_UNKNOWN;
+
+    switch (node->type) {
+        case AST_STRING:
+            return TYPE_STRING;
+        case AST_NUMBER:
+            return node->data.number.is_float ? TYPE_FLOAT : TYPE_INT;
+        case AST_IDENTIFIER: {
+            const char *name = node->data.identifier.name;
+            StackVar *var = stack_frame_find(&gen->stack, name);
+            if (var) return var->type;
+            
+            /* Check constants too if implemented, or assume UNKNOWN */
+            return TYPE_UNKNOWN;
+        }
+        case AST_FUNC_CALL: {
+            const char *func_name = node->data.func_call.name;
+            if (strcasecmp(func_name, "renaud") == 0) return TYPE_STRING;
+            if (strcasecmp(func_name, "romaric") == 0) return TYPE_STRING;
+            if (strcasecmp(func_name, "marvin") == 0) return TYPE_INT;
+            
+            FunctionInfo *func = func_table_find(&gen->functions, func_name);
+            if (func) return func->return_type;
+            
+            return TYPE_UNKNOWN;
+        }
+        case AST_BINARY_OP: {
+            const char *op = node->data.binary_op.op;
+            if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
+                strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
+                strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) {
+                return TYPE_INT;
+            }
+            return get_expression_type(gen, node->data.binary_op.left);
+        }
+        default:
+            return TYPE_UNKNOWN;
+    }
+}
+
+/* Helper to concatenate strings in RAX and RBX */
+static void emit_string_concat(CodeGenerator *gen)
+{
+    /* RAX = str1, RBX = str2 */
+    
+    /* Save registers */
+    emit_push_rax(gen); /* str1 */
+    emit_push_rbx(gen); /* str2 */
+    
+    /* Calculate len1 (str1 is in RAX) */
+    emit_push_rax(gen);
+    emit_mov_rbx_rax(gen); /* rbx = start */
+    /* Loop to find null terminator */
+    /* label: cmp byte [rax], 0; je end; inc rax; jmp label */
+    buffer_write_byte(&gen->code, 0x80); buffer_write_byte(&gen->code, 0x38); buffer_write_byte(&gen->code, 0x00); /* cmp byte [rax], 0 */
+    buffer_write_byte(&gen->code, 0x74); buffer_write_byte(&gen->code, 0x05); /* je +5 */
+    emit_rex_w(gen); buffer_write_byte(&gen->code, 0xFF); buffer_write_byte(&gen->code, 0xC0); /* inc rax */
+    buffer_write_byte(&gen->code, 0xEB); buffer_write_byte(&gen->code, 0xF6); /* jmp -10 */
+    
+    emit_sub_rax_rbx(gen); /* rax = len1 */
+    emit_mov_rcx_rax(gen); /* rcx = len1 */
+    emit_pop_rax(gen); /* restore str1 to rax (ptr) */
+    
+    emit_push_rcx(gen); /* save len1 */
+    
+    /* Calculate len2 (str2 is at [rsp+8] = pushed rbx) */
+    /* We need to load str2 into a register. Let's use rdx. */
+    /* But stack has: [len1, str2, str1]. */
+    /* We can just pop str2 back from stack (temporarily) since we pushed it solely to save it. */
+    /* Actually we need it later for copy. */
+    /* Let's load it from stack. */
+    /* mov rdx, [rsp+8] */
+    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x8B); buffer_write_byte(&gen->code, 0x54); buffer_write_byte(&gen->code, 0x24); buffer_write_byte(&gen->code, 0x08);
+
+    /* Now calc len of rdx */
+    emit_push_rdx(gen); /* save start */
+    emit_mov_rax_rcx(gen); /* save len1 to another reg? No we saved it on stack */
+    
+    emit_mov_rax_rdx(gen); /* rax = start of str2 */
+    
+    /* Loop for str2 */
+    buffer_write_byte(&gen->code, 0x80); buffer_write_byte(&gen->code, 0x38); buffer_write_byte(&gen->code, 0x00);
+    buffer_write_byte(&gen->code, 0x74); buffer_write_byte(&gen->code, 0x05);
+    emit_rex_w(gen); buffer_write_byte(&gen->code, 0xFF); buffer_write_byte(&gen->code, 0xC0);
+    buffer_write_byte(&gen->code, 0xEB); buffer_write_byte(&gen->code, 0xF6);
+    
+    emit_pop_rdx(gen); /* start of str2 */
+    emit_sub_rax_rdx(gen); /* rax = len2 */
+    
+    emit_pop_rcx(gen); /* restore len1 */
+    
+    /* Total size = len1 + len2 + 1 */
+    emit_mov_rdx_rax(gen); /* rdx = len2 */
+    /* rsi = len1 + len2 + 1 */
+    emit_mov_rax_rcx(gen); /* rax = len1 */
+    emit_add_rax_rdx(gen); /* rax = len1 + len2 */
+    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x83); buffer_write_byte(&gen->code, 0xC0); buffer_write_byte(&gen->code, 0x01); /* add rax, 1 */
+    
+    emit_push_rax(gen); /* Save total size */
+    emit_push_rcx(gen); /* Save len1 */
+    emit_push_rdx(gen); /* Save len2 */
+    
+    /* mmap(0, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) */
+    /* rsi = size */
+    emit_mov_rsi_rax(gen); /* size is in rax */
+    emit_mov_rax_imm32(gen, 9); /* sys_mmap */
+    emit_mov_rdi_imm32(gen, 0);
+    emit_mov_rdx_imm32(gen, 3);
+    emit_mov_r10_imm32(gen, 34);
+    emit_mov_r8_imm32(gen, -1);
+    emit_mov_r9_imm32(gen, 0);
+    emit_syscall(gen);
+    
+    /* rax = new buffer */
+    /* Stack: [len2, len1, size, str2, str1] */
+    
+    emit_mov_rdi_rax(gen); /* rdi = dest */
+    
+    emit_pop_rdx(gen); /* len2 */
+    emit_pop_rcx(gen); /* len1 */
+    emit_pop_rbx(gen); /* size (discard) */
+    
+    emit_push_rax(gen); /* Save new buffer for return */
+    
+    /* Copy str1 */
+    /* string 1 is at [rsp+16] = str1. str2 is at [rsp+8] = str2. dest is at [rsp] */
+    /* Stack: [dest, str2, str1] */
+    
+    /* Load str1 to rsi */
+    /* mov rsi, [rsp+16] */
+    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x8B); buffer_write_byte(&gen->code, 0x74); buffer_write_byte(&gen->code, 0x24); buffer_write_byte(&gen->code, 0x10);
+    
+    /* rep movsb for str1 */
+    /* rcx has len1 already */
+    buffer_write_byte(&gen->code, 0xF3); buffer_write_byte(&gen->code, 0xA4);
+    
+    /* Copy str2 */
+    /* rdi is now at dest + len1 */
+    /* Load str2 to rsi */
+    /* mov rsi, [rsp+8] */
+    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x8B); buffer_write_byte(&gen->code, 0x74); buffer_write_byte(&gen->code, 0x24); buffer_write_byte(&gen->code, 0x08);
+    
+    /* mov rcx, rdx (len2) */
+    emit_mov_rcx_rdx(gen);
+    
+    /* rep movsb for str2 */
+    buffer_write_byte(&gen->code, 0xF3); buffer_write_byte(&gen->code, 0xA4);
+    
+    /* Null terminate */
+    buffer_write_byte(&gen->code, 0xC6); buffer_write_byte(&gen->code, 0x07); buffer_write_byte(&gen->code, 0x00); /* mov byte [rdi], 0 */
+    
+    emit_pop_rax(gen); /* restore new buffer address */
+    emit_pop_rbx(gen); /* pop str2 */
+    emit_pop_rdx(gen); /* pop str1 */
+    /* Stack was [str2, str1]. */
+    /* We popped str2 into rbx. */
+    /* We pop str1 into rdx (discard). */
+    
+    /* Result in RAX */
+}
 
 /* ========== Expression Code Generation ========== */
 
@@ -1704,7 +2173,7 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             
             if (!struct_var) {
                 /* Not a struct variable - might be enum access (EnumName.Member) */
-                /* Try to find as combined identifier */
+            //     /* Try to find as combined identifier */
                 char combined[512];
                 snprintf(combined, sizeof(combined), "%s.%s", 
                          node->data.struct_access.struct_name,
@@ -1720,7 +2189,7 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             }
             
             /* Check if it's a struct array access (arr[i].field) */
-            int is_struct_array = (struct_var->is_array && struct_var->struct_name);
+            /* int is_struct_array = (struct_var->is_array && struct_var->struct_name); */
             int is_struct_ptr = (struct_var->type == TYPE_STRUCT_PTR);
             
             /* Find struct definition using the struct variable's type name */
@@ -1851,6 +2320,10 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
         }
 
         case AST_BINARY_OP: {
+            /* Check types for string concatenation */
+            DataType leftType = get_expression_type(gen, node->data.binary_op.left);
+            DataType rightType = get_expression_type(gen, node->data.binary_op.right);
+            
             /* Compile right operand first, push result */
             if (codegen_expression(gen, node->data.binary_op.right) != 0) return -1;
             emit_push_rax(gen);
@@ -1865,7 +2338,11 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
             const char *op = node->data.binary_op.op;
 
             if (strcmp(op, "+") == 0) {
-                emit_add_rax_rbx(gen);
+                if (leftType == TYPE_STRING && rightType == TYPE_STRING) {
+                    emit_string_concat(gen);
+                } else {
+                    emit_add_rax_rbx(gen);
+                }
             } else if (strcmp(op, "-") == 0) {
                 emit_sub_rax_rbx(gen);
             } else if (strcmp(op, "*") == 0) {
@@ -1911,8 +2388,149 @@ static int codegen_expression(CodeGenerator *gen, ASTNode *node)
         }
 
         case AST_FUNC_CALL: {
-            /* Find function */
-            FunctionInfo *func = func_table_find(&gen->functions, node->data.func_call.name);
+            const char *func_name = node->data.func_call.name;
+            
+            /* Check for builtin functions */
+            if (strcasecmp(func_name, "renaud") == 0) {
+                if (node->data.func_call.args.count > 0) {
+                    if (codegen_expression(gen, node->data.func_call.args.items[0]) != 0) return -1;
+                }
+                emit_mov_rdi_rax(gen);
+                emit_mov_rax_imm32(gen, 2); /* sys_open */
+                emit_mov_rsi_imm32(gen, 0); /* O_RDONLY */
+                emit_xor_rdx_rdx(gen);
+                emit_syscall(gen);
+                emit_push_rax(gen); /* fd */
+                
+                /* mmap buffer */
+                emit_mov_rax_imm32(gen, 9); /* sys_mmap */
+                emit_mov_rdi_imm32(gen, 0);
+                emit_mov_rsi_imm32(gen, 4096);
+                emit_mov_rdx_imm32(gen, 3); /* PROT_READ|PROT_WRITE */
+                emit_mov_r10_imm32(gen, 34); /* MAP_PRIVATE|MAP_ANONYMOUS */
+                emit_mov_r8_imm32(gen, -1);
+                emit_mov_r9_imm32(gen, 0);
+                emit_syscall(gen);
+                
+                emit_mov_rbx_rax(gen); /* buffer */
+                emit_pop_rdi(gen); /* fd */
+                emit_push_rbx(gen);
+                
+                /* read */
+                emit_mov_rax_imm32(gen, 0); /* sys_read */
+                emit_mov_rsi_rbx(gen);
+                emit_mov_rdx_imm32(gen, 4096);
+                emit_syscall(gen);
+                
+                /* close */
+                emit_push_rax(gen); /* bytes read */
+                emit_mov_rax_imm32(gen, 3); /* sys_close */
+                emit_syscall(gen);
+                
+                emit_pop_rax(gen); /* bytes read */
+                emit_pop_rbx(gen); /* buffer */
+                
+                /* null terminate */
+                emit_add_rax_rbx(gen);
+                emit_rex_w(gen);
+                buffer_write_byte(&gen->code, 0xC6); /* mov byte [rax], 0 */
+                buffer_write_byte(&gen->code, 0x00);
+                buffer_write_byte(&gen->code, 0x00);
+                
+                emit_mov_rax_rbx(gen);
+                return 0;
+            } else if (strcasecmp(func_name, "romaric") == 0) {
+                if (node->data.func_call.args.count > 0) {
+                    if (codegen_expression(gen, node->data.func_call.args.items[0]) != 0) return -1;
+                    /* Print prompt logic: strlen + write(1) */
+                    emit_push_rax(gen); /* prompt ptr */
+                    emit_mov_rbx_rax(gen);
+                    /* strlen loop */
+                    buffer_write_byte(&gen->code, 0x80); buffer_write_byte(&gen->code, 0x3B); buffer_write_byte(&gen->code, 0x00);
+                    buffer_write_byte(&gen->code, 0x74); buffer_write_byte(&gen->code, 0x05);
+                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0xFF); buffer_write_byte(&gen->code, 0xC3);
+                    buffer_write_byte(&gen->code, 0xEB); buffer_write_byte(&gen->code, 0xF6);
+                    
+                    emit_pop_rsi(gen); /* prompt ptr (restore for write) */
+                    emit_push_rsi(gen); /* keep safe */
+                    
+                    /* sub rbx, rsi */
+                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x2B); buffer_write_byte(&gen->code, 0xDE);
+                    
+                    /* mov rdx, rbx */
+                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x89); buffer_write_byte(&gen->code, 0xDA);
+                    
+                    emit_mov_rdi_imm32(gen, 1); /* stdout */
+                    emit_mov_rax_imm32(gen, 1); /* sys_write */
+                    emit_syscall(gen);
+                    emit_pop_rsi(gen); 
+                }
+                
+                /* mmap buffer */
+                emit_mov_rax_imm32(gen, 9);
+                emit_mov_rdi_imm32(gen, 0);
+                emit_mov_rsi_imm32(gen, 4096);
+                emit_mov_rdx_imm32(gen, 3);
+                emit_mov_r10_imm32(gen, 34);
+                emit_mov_r8_imm32(gen, -1);
+                emit_mov_r9_imm32(gen, 0);
+                emit_syscall(gen);
+                
+                emit_mov_rbx_rax(gen); /* buffer */
+                emit_push_rbx(gen);
+                
+                emit_mov_rax_imm32(gen, 0); /* sys_read */
+                emit_mov_rdi_imm32(gen, 0); /* stdin */
+                emit_mov_rsi_rbx(gen);
+                emit_mov_rdx_imm32(gen, 4096);
+                emit_syscall(gen);
+                
+                emit_pop_rbx(gen);
+                /* null terminate */
+                emit_add_rax_rbx(gen);
+                emit_rex_w(gen); buffer_write_byte(&gen->code, 0xC6); buffer_write_byte(&gen->code, 0x00); buffer_write_byte(&gen->code, 0x00);
+                
+                emit_mov_rax_rbx(gen);
+                return 0;
+            } else if (strcasecmp(func_name, "marvin") == 0) {
+                if (node->data.func_call.args.count >= 2) {
+                    if (codegen_expression(gen, node->data.func_call.args.items[0]) != 0) return -1;
+                    emit_mov_rdi_rax(gen);
+                    emit_mov_rax_imm32(gen, 2); /* open */
+                    emit_mov_rsi_imm32(gen, 577);
+                    emit_mov_rdx_imm32(gen, 420);
+                    emit_syscall(gen);
+                    emit_push_rax(gen); /* fd */
+                    
+                    if (codegen_expression(gen, node->data.func_call.args.items[1]) != 0) return -1;
+                    /* calc strlen */
+                    emit_push_rax(gen); /* start */
+                    emit_mov_rbx_rax(gen);
+                    /* loop */
+                    buffer_write_byte(&gen->code, 0x80); buffer_write_byte(&gen->code, 0x3B); buffer_write_byte(&gen->code, 0x00);
+                    buffer_write_byte(&gen->code, 0x74); buffer_write_byte(&gen->code, 0x05);
+                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0xFF); buffer_write_byte(&gen->code, 0xC3);
+                    buffer_write_byte(&gen->code, 0xEB); buffer_write_byte(&gen->code, 0xF6);
+                    
+                    emit_pop_rsi(gen); /* start */
+                    /* sub rbx, rsi */
+                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x2B); buffer_write_byte(&gen->code, 0xDE);
+                    /* mov rdx, rbx */
+                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x89); buffer_write_byte(&gen->code, 0xDA);
+                    
+                    emit_pop_rdi(gen); /* fd */
+                    emit_mov_rax_imm32(gen, 1); /* write */
+                    emit_syscall(gen);
+                    
+                    emit_mov_rax_imm32(gen, 3); /* close */
+                    emit_syscall(gen);
+                }
+                emit_mov_rax_imm32(gen, 1);
+                return 0;
+            }
+            
+            /* Otherwise, find user-defined function */
+            FunctionInfo *func = func_table_find(&gen->functions, func_name);
             if (!func) {
                 gen->error_msg = strdup("Undefined function");
                 gen->error_line = node->line;
@@ -2852,7 +3470,7 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
             }
             
             /* Check if it's a struct array access (arr[i].field = value) */
-            int is_struct_array = (struct_var->is_array && struct_var->struct_name);
+            // int is_struct_array = (struct_var->is_array && struct_var->struct_name);
             int is_struct_ptr = (struct_var->type == TYPE_STRUCT_PTR);
             
             /* Find struct definition using the struct variable's type name */
@@ -3147,7 +3765,56 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                             memcpy(expr, fmt + var_start, expr_len);
                             expr[expr_len] = '\0';
                             
+                            /* Check for concatenation (+) first */
+                            if (strchr(expr, '+') && !strchr(expr, '(')) {
+                                /* Simple concatenation support: var + var */
+                                char *plus = strchr(expr, '+');
+                                *plus = '\0';
+                                char *left_expr = expr;
+                                char *right_expr = plus + 1;
+                                
+                                /* Trim */
+                                while (*left_expr == ' ') left_expr++;
+                                char *end = left_expr + strlen(left_expr) - 1;
+                                while (end > left_expr && *end == ' ') { *end = '\0'; end--; }
+                                
+                                while (*right_expr == ' ') right_expr++;
+                                end = right_expr + strlen(right_expr) - 1;
+                                while (end > right_expr && *end == ' ') { *end = '\0'; end--; }
+                                
+                                StackVar *left = stack_frame_find(&gen->stack, left_expr);
+                                StackVar *right = stack_frame_find(&gen->stack, right_expr);
+                                
+                                if (left && right) {
+                                    emit_mov_rax_rbp_offset(gen, left->stack_offset);
+                                    emit_push_rax(gen);
+                                    emit_mov_rax_rbp_offset(gen, right->stack_offset);
+                                    emit_mov_rbx_rax(gen);
+                                    emit_pop_rax(gen);
+                                    
+                                    emit_string_concat(gen);
+                                    
+                                    /* Print result (in rax) */
+                                    emit_push_rax(gen);
+                                    emit_mov_rbx_rax(gen);
+                                    /* strlen loop */
+                                    buffer_write_byte(&gen->code, 0x80); buffer_write_byte(&gen->code, 0x3B); buffer_write_byte(&gen->code, 0x00);
+                                    buffer_write_byte(&gen->code, 0x74); buffer_write_byte(&gen->code, 0x05);
+                                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0xFF); buffer_write_byte(&gen->code, 0xC3);
+                                    buffer_write_byte(&gen->code, 0xEB); buffer_write_byte(&gen->code, 0xF6);
+                                    
+                                    emit_pop_rsi(gen); /* start */
+                                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x2B); buffer_write_byte(&gen->code, 0xDE); /* sub rbx, rsi */
+                                    emit_rex_w(gen); buffer_write_byte(&gen->code, 0x89); buffer_write_byte(&gen->code, 0xDA); /* mov rdx, rbx */
+                                    
+                                    emit_mov_rax_imm32(gen, 1);
+                                    emit_mov_rdi_imm32(gen, 1);
+                                    emit_syscall(gen);
+                                }
+                                /* expr freed at end of scope */
+                            } else 
                             /* Check if it's a function call: name(...) */
+                            {
                             char *paren = strchr(expr, '(');
                             if (paren && !strchr(expr, '[')) {
                                 /* Parse function call */
@@ -3516,9 +4183,9 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                             emit_print_char(gen);
                                             break;
                                         case TYPE_STRING:
-                                            /* For string, rax contains string address (after patching) */
-                                            /* Use var->string_length for the length */
-                                            emit_print_string_offset(gen, var->string_length);
+                                            /* For string, rax contains string address */
+                                            /* For literal strings, we know length, but for dynamic (I/O), we must compute it */
+                                            emit_print_string_compute_len(gen);
                                             break;
                                         default:
                                             emit_print_int(gen);  /* Default to int */
@@ -3602,6 +4269,7 @@ static int codegen_statement(CodeGenerator *gen, ASTNode *node)
                                     }
                                 }
                             }
+                            } /* Close the else block for non-concatenation logic */
                             free(expr);
                             i++;  /* Skip '}' */
                         }

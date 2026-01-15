@@ -7,6 +7,9 @@
 
 #include "../includes/interpreter.h"
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* ========== Value Functions ========== */
 
@@ -488,6 +491,116 @@ static Value eval_expression(Interpreter *interp, ASTNode *node);
 static Value exec_statement(Interpreter *interp, ASTNode *node);
 static Value exec_block(Interpreter *interp, ASTNodeList *stmts);
 
+/* ========== Builtin Functions ========== */
+
+/* renaud(filename) - read file content */
+static Value builtin_renaud(Interpreter *interp, ASTNodeList *args)
+{
+    (void)interp;
+    
+    if (args->count < 1) {
+        return value_create_string("");
+    }
+    
+    Value filename_val = eval_expression(interp, args->items[0]);
+    if (filename_val.type != VAL_STRING) {
+        value_free(&filename_val);
+        return value_create_string("");
+    }
+    
+    const char *filename = filename_val.data.string_val;
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        value_free(&filename_val);
+        return value_create_string("");
+    }
+    
+    /* Read entire file into memory */
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    if (file_size <= 0) {
+        fclose(file);
+        value_free(&filename_val);
+        return value_create_string("");
+    }
+    
+    char *buffer = malloc(file_size + 1);
+    size_t read = fread(buffer, 1, (size_t)file_size, file);
+    buffer[read] = '\0';
+    fclose(file);
+    
+    Value result = value_create_string(buffer);
+    free(buffer);
+    value_free(&filename_val);
+    return result;
+}
+
+/* romaric(prompt) - read user input */
+static Value builtin_romaric(Interpreter *interp, ASTNodeList *args)
+{
+    (void)interp;
+    
+    /* Print prompt if provided */
+    if (args->count > 0) {
+        Value prompt_val = eval_expression(interp, args->items[0]);
+        if (prompt_val.type == VAL_STRING && prompt_val.data.string_val) {
+            printf("%s", prompt_val.data.string_val);
+            fflush(stdout);
+        }
+        value_free(&prompt_val);
+    }
+    
+    /* Read input from stdin */
+    char buffer[4096];
+    if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
+        /* Remove trailing newline if present */
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0';
+        }
+        return value_create_string(buffer);
+    }
+    
+    return value_create_string("");
+}
+
+/* marvin(filename, content) - write to file */
+static Value builtin_marvin(Interpreter *interp, ASTNodeList *args)
+{
+    if (args->count < 2) {
+        return value_create_int(0);
+    }
+    
+    Value filename_val = eval_expression(interp, args->items[0]);
+    Value content_val = eval_expression(interp, args->items[1]);
+    
+    if (filename_val.type != VAL_STRING || content_val.type != VAL_STRING) {
+        value_free(&filename_val);
+        value_free(&content_val);
+        return value_create_int(0);
+    }
+    
+    const char *filename = filename_val.data.string_val;
+    const char *content = content_val.data.string_val;
+    
+    FILE *file = fopen(filename, "w");
+    if (!file) {
+        value_free(&filename_val);
+        value_free(&content_val);
+        return value_create_int(0);
+    }
+    
+    size_t written = fwrite(content, 1, strlen(content), file);
+    fclose(file);
+    
+    value_free(&filename_val);
+    value_free(&content_val);
+    
+    return value_create_int((long)written);
+}
+
 /* ========== Expression Evaluation ========== */
 
 /* Process format string like "x = {x}, y = {y}" */
@@ -883,6 +996,17 @@ static Value eval_expression(Interpreter *interp, ASTNode *node)
 
         case AST_FUNC_CALL: {
             const char *func_name = node->data.func_call.name;
+            
+            /* Check for builtin functions first */
+            if (strcasecmp(func_name, "renaud") == 0) {
+                return builtin_renaud(interp, &node->data.func_call.args);
+            } else if (strcasecmp(func_name, "romaric") == 0) {
+                return builtin_romaric(interp, &node->data.func_call.args);
+            } else if (strcasecmp(func_name, "marvin") == 0) {
+                return builtin_marvin(interp, &node->data.func_call.args);
+            }
+            
+            /* Otherwise, look up user-defined function */
             FuncDef *func = func_registry_get(&interp->functions, func_name);
 
             if (!func) {
